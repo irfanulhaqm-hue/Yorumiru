@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#09090d"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon.svg">
+<link rel="stylesheet" href="styles.css"><title>Yorumiru</title></head><body>
+<header><div><b>YOROMIRU</b><small>YOUR ANIME JOURNAL</small></div><button id="add">＋</button></header>
+<main><section class="hero"><div><small>MY WATCHLIST</small><h1>Keep your story<br><i>moving.</i></h1></div><div id="stats"></div></section>
+<nav id="filters"><button class="on" data-f="all">All</button><button data-f="watching">Watching</button><button data-f="planned">Planned</button><button data-f="completed">Completed</button></nav>
+<section id="list"></section><section id="empty" class="empty"><strong>✦</strong><h2>Your watchlist is empty</h2><p>Add the anime you want to track.</p><button class="primary" id="emptyAdd">Add your first anime</button></section></main>
+<dialog id="addDlg"><form id="addForm"><button type="button" class="x" id="close">×</button><small>NEW ENTRY</small><h2>Add anime</h2><label>Anime title<input id="title" required placeholder="e.g. Bleach"></label><div class="label">SEASONS</div><div id="seasons"></div><button type="button" class="secondary" id="more">＋ Add season</button><div class="actions"><button type="button" class="secondary" id="cancel">Cancel</button><button class="primary">Add anime</button></div></form></dialog>
+<dialog id="detailDlg"><div id="detail"></div></dialog><script src="app.js"></script></body></html>
