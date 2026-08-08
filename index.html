@@ -1,17 +1,17 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d14"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css?v=432"><title>Yorumiru</title></head><body>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d14"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css?v=432"><title>Yorumiru — v4.4</title></head><body>
 <header><b>YOROMIRU</b><button id="search">⌕ Search anime</button></header>
 <main>
 <section id="explore" class="page active"><div class="search"><span>⌕</span><input id="q" placeholder="Search anime, characters..."></div><div id="genres" class="chips"></div><div id="feed" class="grid"></div></section>
 <section id="watch" class="page"><div class="tabs"><button class="active" data-tab="list">WATCHLIST</button><button data-tab="upcoming">UPCOMING</button></div><div id="watchContent"></div></section>
 <section id="profile" class="page"><div class="hero">
-<div class="banner" id="profileBanner" title="Tap to change background"></div>
-<button class="imageEdit bannerEdit" id="bannerEdit" aria-label="Change profile background">✎</button>
-<div class="avatar" id="profileAvatar" title="Tap to change profile picture">Y</div>
+<div class="banner" id="profileBanner" title="Change background"></div>
+<button class="imageEdit bannerEdit" id="bannerEdit" aria-label="Change background">✎</button>
+<div class="avatar" id="profileAvatar" title="Change profile picture">Y</div>
 <button class="imageEdit avatarEdit" id="avatarEdit" aria-label="Change profile picture">✎</button>
 <button id="dots">•••</button><h2 id="username">Yorumiru User</h2>
 <input type="file" id="bannerFile" accept="image/*" hidden>
 <input type="file" id="avatarFile" accept="image/*" hidden>
-</div><div class="stats"><div><b id="hours">0h</b><small>TIME WATCHED</small></div><div><b id="episodes">0</b><small>EPISODES</small></div><div><b>0</b><small>FRIENDS</small></div></div><section><div class="sectionHead"><h3>Favorite shows</h3><span class="muted">♥</span></div><div id="favShows" class="row"></div></section><section><div class="sectionHead"><h3>Favorite characters</h3><button id="addChar">＋ Add</button></div><div id="favChars" class="row"></div></section><section><h3>My collection</h3><div id="collection"></div></section><div class="developer"><b>Yorumiru</b><span>Developed by Irfanul Haq M</span><span>irfanulhaqm@gmail.com · 7907759546</span></div></section>
+</div><div class="stats"><div><b id="hours">0h</b><small>TIME WATCHED</small></div><div><b id="episodes">0</b><small>EPISODES</small></div><div><b>0</b><small>FRIENDS</small></div></div><section><h3>Favorite shows</h3><div id="favShows" class="row"></div></section><section><div class="sectionHead"><h3>Favorite characters</h3><button id="addChar">＋ Add</button></div><div id="favChars" class="row"></div></section><section><h3>My collection</h3><div id="collection"></div></section><div class="developer"><b>Yorumiru</b><span>Developed by Irfanul Haq M</span><span>irfanulhaqm@gmail.com · 7907759546</span></div></section>
 </main><nav><button class="nav active" data-page="explore">⌂<small>Discover</small></button><button class="nav" data-page="watch">▣<small>Watchlist</small></button><button class="nav" data-page="profile">●<small>Profile</small></button></nav>
 <dialog id="animeDlg"><div id="anime"></div></dialog><dialog id="epDlg"><div id="eps"></div></dialog><dialog id="settingsDlg"><div class="modal">
 <button class="x" data-close="settingsDlg">×</button><h2>Profile & settings</h2>
@@ -19,4 +19,5 @@
 <div class="imageSettings"><button class="secondary" id="settingsAvatar">Change profile picture</button><button class="secondary" id="settingsBanner">Change background</button></div>
 <button class="primary wide" id="save">Save</button><p class="muted">Accounts can use a username without phone number or email.</p>
 </div></dialog><dialog id="charDlg"><div class="modal"><button class="x" data-close="charDlg">×</button><h2>Favorite character</h2><input id="cq" placeholder="Search a character..."><div id="chars"></div></div></dialog>
+<dialog id="bannerDlg"><div class="modal"><button class="x" data-close="bannerDlg">×</button><h2>Anime banner collection</h2><p class="muted">Choose a banner from anime artwork, or search for an anime.</p><div class="bannerSearch"><input id="bq" placeholder="Search anime banners..."><button class="secondary" id="bSearch">Search</button></div><div id="bannerList" class="bannerGrid"></div></div></dialog>
 <script src="app.js?v=432"></script></body></html>

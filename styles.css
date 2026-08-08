@@ -207,13 +207,12 @@ input::placeholder{color:#74808c}
   border:1px solid #293642;
   box-shadow:var(--shadow);
 }
-.banner{cursor:pointer;
+.banner{
   height:228px;
   position:relative;
   background:
     radial-gradient(circle at 78% 30%,#9a7cff25,transparent 34%),
     linear-gradient(135deg,#123331,#172735 58%,#171324);
-  background-size:cover;background-position:center;
 }
 .banner:before{
   content:"";position:absolute;inset:0;
@@ -427,7 +426,7 @@ dialog::backdrop{background:#000c;backdrop-filter:blur(6px)}
   .card{border-radius:17px}
   .body{padding:11px 12px 13px}
   .hero{height:280px}
-  .banner{cursor:pointer;height:210px}
+  .banner{height:210px}
   .hero h2{font-size:21px;left:124px}
   .detailBanner{height:220px}
   .detailHead h1{font-size:22px}
@@ -452,52 +451,73 @@ dialog::backdrop{background:#000c;backdrop-filter:blur(6px)}
 #epLoading{padding:8px 0 10px}
 #epList .episode .muted{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
-/* V4.3.2 profile + favorites patch */
+/* Yorumiru V4.3.1 interaction patch */
+.banner{cursor:pointer;background-size:cover;background-position:center}
+.banner.hasImage:after{background:linear-gradient(180deg,#00000018 20%,#0d141b 100%)}
+.avatar{cursor:pointer;background-size:cover;background-position:center}
 .imageEdit{
-  position:absolute;z-index:5;width:32px;height:32px;padding:0;
+  position:absolute;z-index:6;width:32px;height:32px;padding:0;
   display:grid;place-items:center;border-radius:50%;
-  background:#0b1118dd;border:1px solid #ffffff18;color:#fff;font-size:14px;
-  box-shadow:0 8px 18px #0008;
+  background:#080d14e8;border:1px solid #ffffff1a;color:#fff;
+  box-shadow:0 8px 20px #0009;font-size:14px;
 }
 .bannerEdit{right:14px;top:14px}
-.avatarEdit{left:91px;bottom:24px}
-.avatar{background-size:cover;background-position:center;cursor:pointer}
-.banner.hasImage:after{background:linear-gradient(180deg,#00000018 0%,#0e141b 100%)}
+.avatarEdit{left:86px;bottom:22px}
 .imageSettings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
 .secondary{
-  background:#111a22;color:var(--text);border:1px solid #293642;
-  border-radius:12px;padding:10px 12px;
+  padding:10px 14px;border-radius:999px;border:1px solid #273541;
+  background:#0d141b;color:#aab5bf;
 }
+.secondary:hover{color:var(--text);border-color:#465362;background:#151d26}
 .detailActions{display:flex;gap:9px;align-items:center;margin:17px 13px 0}
-.detailHead+.detailActions{margin-top:17px}
 .detailActions .primary{margin:0}
 .favoriteAction{
-  background:#111a22;color:var(--text);border:1px solid #293642;
-  border-radius:13px;padding:11px 14px;font-weight:700;
+  background:#10161e;color:var(--muted2);border:1px solid #293642;
+  border-radius:13px;padding:11px 15px;font-weight:750;
 }
-.favoriteAction.on{color:#f3b5ff;border-color:#8d5cf5;background:#211735}
+.favoriteAction.on{color:#f0b3ff;border-color:#8d6eea;background:#211735}
 .poster{position:relative}
 .favBtn{
-  position:absolute;right:9px;top:9px;width:38px;height:38px;
-  border-radius:50%;border:1px solid #ffffff22;background:#080d14cc;
-  color:#fff;font-size:20px;display:grid;place-items:center;
-  backdrop-filter:blur(8px);z-index:2;
+  position:absolute;right:9px;top:9px;z-index:4;
+  width:38px;height:38px;border-radius:50%;padding:0;
+  display:grid;place-items:center;
+  background:#080d14d9;border:1px solid #ffffff20;color:#fff;
+  font-size:20px;backdrop-filter:blur(7px);
 }
-.favBtn.on{color:#f0a8ff;border-color:#8b5cf5;background:#25183ccc}
+.favBtn.on{color:#f0b3ff;border-color:#8d6eea;background:#241735e8}
 .miniImg{position:relative}
 .miniHeart{
-  position:absolute;right:6px;top:6px;width:29px;height:29px;border-radius:50%;
-  border:1px solid #ffffff22;background:#080d14cc;color:#f0a8ff;
+  position:absolute;right:5px;top:5px;width:28px;height:28px;
+  border-radius:50%;padding:0;background:#080d14d9;
+  border:1px solid #ffffff20;color:#f0b3ff;
 }
-.favMini{cursor:pointer}
-.char{position:relative}
+.favMini,.collectionItem{cursor:pointer}
+.favMini{transition:.18s ease}
+.favMini:hover{transform:translateY(-2px)}
+.collectionItem{position:relative;padding-right:38px}
+.collectionItem .chev{position:absolute;right:15px;color:var(--muted)}
+.charImg{position:relative;width:70px;height:70px;margin:auto}
+.charImg img{width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #30404c}
 .removeChar{
-  position:absolute;right:4px;top:0;width:22px;height:22px;border-radius:50%;
-  padding:0;background:#0a1016cc;color:#fff;border:1px solid #ffffff15;
+  position:absolute;right:-2px;top:-4px;width:22px;height:22px;
+  padding:0;border-radius:50%;background:#080d14e8;
+  border:1px solid #ffffff20;color:#fff;
 }
-.sim{cursor:pointer;transition:.18s ease}
-.sim:hover{transform:translateY(-2px)}
 @media(max-width:600px){
   .detailActions{flex-wrap:wrap}
   .detailActions .primary,.favoriteAction{flex:1}
+  .bannerEdit{right:10px;top:10px}
+  .avatarEdit{left:82px}
 }
+/* V4.3.2 anime banner collection */
+.bannerSearch{display:flex;gap:8px;margin:12px 0 16px}
+.bannerSearch input{border:1px solid #293642;background:#101820;border-radius:12px;padding:11px 13px}
+.bannerSearch .secondary{border-radius:12px;min-width:86px}
+.bannerGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:58vh;overflow:auto;padding-right:2px}
+.bannerChoice{display:block;text-align:left;padding:0;background:#101820;border:1px solid #293642;border-radius:12px;overflow:hidden;color:var(--text);cursor:pointer}
+.bannerChoice:hover{border-color:#7666b0;transform:translateY(-2px)}
+.bannerChoice img{display:block;width:100%;height:86px;object-fit:cover}
+.bannerChoice span{display:block;padding:7px 9px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result{align-items:center;color:var(--text);cursor:pointer;text-decoration:none}
+.result span{font-weight:700}
+@media(max-width:600px){.bannerGrid{grid-template-columns:1fr}.bannerChoice img{height:92px}}
