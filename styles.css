@@ -442,3 +442,11 @@ dialog::backdrop{background:#000c;backdrop-filter:blur(6px)}
     overflow:hidden;
   }
 }
+
+/* V4.3 episode + recommendation patch */
+.sim{cursor:pointer;transition:transform .2s ease,border-color .2s ease}
+.sim:hover{transform:translateY(-3px)}
+.sim img{display:block}
+.episode{cursor:pointer}
+#epLoading{padding:8px 0 10px}
+#epList .episode .muted{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
