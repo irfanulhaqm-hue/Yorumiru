@@ -894,3 +894,17 @@ dialog::backdrop{background:#000000b8;backdrop-filter:blur(7px)}
   nav{height:72px;padding:7px 20px}
 }
 @media(min-width:900px){.railCard{width:152px;flex-basis:152px}.railPoster{height:216px}}
+
+/* V4.5.1 — reliable profile artwork rendering
+   Use real image elements instead of CSS background-image so uploaded files,
+   data URLs and remote anime banners render consistently on mobile browsers. */
+.banner{isolation:isolate;background:linear-gradient(135deg,#102c2a,#172735 58%,#171324);}
+.bannerMedia{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;object-position:center;z-index:0;}
+.banner.hasImage:before{z-index:1;}
+.banner.hasImage:after{z-index:2;}
+.bannerFallback{position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 78% 30%,#9a7cff25,transparent 34%),linear-gradient(135deg,#123331,#172735 58%,#171324);}
+.banner.hasImage .bannerFallback{opacity:0;}
+.banner.imageBroken .bannerFallback{opacity:1;}
+.avatar{overflow:hidden;background:linear-gradient(140deg,var(--accent),#5b9ff7);}
+.avatarMedia{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;object-position:center;z-index:1;border-radius:50%;}
+.avatar.hasImage{font-size:0;}
