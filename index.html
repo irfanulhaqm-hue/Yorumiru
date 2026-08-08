@@ -1,69 +1,27 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#09090d">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg">
-<link rel="stylesheet" href="styles.css">
-<title>Yorumiru</title>
-</head>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1014"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css"><title>Yorumiru</title></head>
 <body>
-<header>
-  <div><b>YOROMIRU</b><small>YOUR ANIME JOURNAL</small></div>
-  <button id="add" aria-label="Add anime">＋</button>
-</header>
-
+<header><div><b>YORUMIRU</b><small>YOUR ANIME JOURNAL</small></div><button id="add" aria-label="Add anime">＋</button></header>
 <main>
-  <section class="hero">
-    <div><small>MY WATCHLIST</small><h1>Keep your story<br><i>moving.</i></h1></div>
-    <div id="stats"></div>
-  </section>
-
-  <nav id="filters">
-    <button class="on" data-f="all">All</button>
-    <button data-f="watching">Watching</button>
-    <button data-f="planned">Planned</button>
-    <button data-f="completed">Completed</button>
-  </nav>
-
-  <section id="list"></section>
-  <section id="empty" class="empty">
-    <strong>✦</strong><h2>Your watchlist is empty</h2>
-    <p>Search for an anime to start tracking it.</p>
-    <button class="primary" id="emptyAdd">Add your first anime</button>
-  </section>
+<section class="hero"><div><small>MY WATCHLIST</small><h1>Keep your story<br><i>moving.</i></h1></div><div id="stats"></div></section>
+<nav id="filters">
+<button class="on" data-f="all">All</button><button data-f="watching">Watching</button><button data-f="planned">Planned</button><button data-f="completed">Completed</button><button data-f="favorites">♥ Favorites</button>
+</nav>
+<section id="list"></section>
+<section id="empty" class="empty"><strong>✦</strong><h2>Your watchlist is empty</h2><p>Add the anime you want to track.</p><button class="primary" id="emptyAdd">Add your first anime</button></section>
 </main>
 
-<dialog id="searchDlg">
-  <div class="modal">
-    <button class="x" id="searchClose">×</button>
-    <small class="label">ANIME DATABASE</small>
-    <h2>Find an anime</h2>
-    <div class="searchRow">
-      <input id="searchInput" autocomplete="off" placeholder="Search e.g. Bleach">
-      <button class="primary" id="searchBtn">Search</button>
-    </div>
-    <div id="searchMsg" class="muted">Search AniList for an anime.</div>
-    <div id="results" class="results"></div>
-  </div>
-</dialog>
-
-<dialog id="addDlg">
-  <div class="modal">
-    <button class="x" id="addClose">×</button>
-    <small class="label">ADD ANIME</small>
-    <div id="selectedAnime"></div>
-    <div class="actions">
-      <button class="secondary" id="backToSearch">Back</button>
-      <button class="primary" id="confirmAdd">Add to watchlist</button>
-    </div>
-  </div>
-</dialog>
+<dialog id="addDlg"><div id="addPane">
+<button class="x" id="close">×</button>
+<small class="label">ADD ANIME</small><h2>Find your anime</h2>
+<label>Search<input id="search" autocomplete="off" placeholder="e.g. Attack on Titan"></label>
+<div id="results"></div>
+<div id="selected" class="selected hidden"></div>
+<div class="actions"><button class="secondary" id="cancel">Cancel</button></div>
+</div></dialog>
 
 <dialog id="detailDlg"><div id="detail"></div></dialog>
-
-<script src="app.js"></script>
-</body>
-</html>
+<script src="app.js"></script></body></html>
