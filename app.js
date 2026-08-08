@@ -1,24 +1,41 @@
-const API="https://graphql.anilist.co",JIKAN="https://api.jikan.moe/v4",K="yorumiru-v4.4";
-let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem("yorumiru-v4.3")||localStorage.getItem("yorumiru-v4")||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
+const API="https://graphql.anilist.co",JIKAN="https://api.jikan.moe/v4",K="yorumiru-v4.4.1";
+let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem("yorumiru-v4.4")||localStorage.getItem("yorumiru-v4.3")||localStorage.getItem("yorumiru-v4")||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
 db.list=db.list||[];db.favorites=db.favorites||[];db.favChars=db.favChars||[];db.profile=db.profile||{name:"Yorumiru User"};db.profile.banner=db.profile.banner||"";db.profile.avatar=db.profile.avatar||"";
 
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])),save=()=>localStorage.setItem(K,JSON.stringify(db));
 const Q=`query($search:String,$genre:String){Page(page:1,perPage:24){media(search:$search,genre:$genre,type:ANIME,isAdult:false,sort:[TRENDING_DESC,POPULARITY_DESC]){id idMal title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}recommendations(perPage:6){nodes{mediaRecommendation{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}}}}`;
 async function api(v){let r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:Q,variables:v})});let j=await r.json();return j?.data?.Page?.media||[]}
-async function jikanEpisodes(malId){
-  if(!malId)return [];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function fetchJikanPage(malId,page,attempt=0){
   try{
-    let all=[],page=1;
-    while(page<=30){
-      let r=await fetch(`${JIKAN}/anime/${malId}/episodes?page=${page}`);
-      if(!r.ok)break;
-      let j=await r.json(),data=j?.data||[];
-      all.push(...data);
-      if(!j?.pagination?.has_next_page)break;
-      page++;
+    const r=await fetch(`${JIKAN}/anime/${malId}/episodes?page=${page}`,{cache:"no-store"});
+    if(r.ok)return await r.json();
+    if((r.status===429||r.status>=500)&&attempt<4){
+      const retry=Number(r.headers.get("Retry-After"));
+      await sleep(Number.isFinite(retry)&&retry>0?retry*1000:Math.min(8000,1500*(attempt+1)));
+      return fetchJikanPage(malId,page,attempt+1);
     }
-    return all;
-  }catch{return []}
+  }catch{}
+  if(attempt<3){await sleep(Math.min(6000,1200*(attempt+1)));return fetchJikanPage(malId,page,attempt+1)}
+  return null;
+}
+async function jikanEpisodes(malId,startPage=1,onPage){
+  if(!malId)return {items:[],hasMore:false,nextPage:1,failed:false};
+  let all=[],page=startPage,lastPage=null,failed=false;
+  while(page<=30){
+    const j=await fetchJikanPage(malId,page);
+    if(!j){failed=true;break}
+    const data=Array.isArray(j.data)?j.data:[];
+    all.push(...data);
+    lastPage=j?.pagination?.last_visible_page||lastPage;
+    const hasNext=!!j?.pagination?.has_next_page;
+    if(onPage)onPage({page,loaded:all.length,totalPages:lastPage||null,hasNext});
+    if(!hasNext)break;
+    page++;
+    // Jikan documents a 3 requests/second limit; stay comfortably below it.
+    await sleep(450);
+  }
+  return {items:all,hasMore:failed||!!(lastPage&&page<lastPage),nextPage:page,failed};
 }
 const title=m=>m?.title?.english||m?.title?.romaji||"Unknown anime";
 function isFav(id){return db.favorites.includes(id)}
@@ -92,37 +109,85 @@ function ensureSeason(x,si,source){
 }
 async function openEpisodes(m,si,source){
   let x=db.list.find(z=>z.id===m.id);if(!x){add(m);x=db.list.find(z=>z.id===m.id)}
-  let season=ensureSeason(x,si,source||m),eps=season.episodes,info=season.episodeInfo||[];
-  $("#eps").innerHTML=`<button class=x onclick="epDlg.close()">×</button><h2>${esc(title(m))} — ${esc(season.name)}</h2><div id=epLoading class=muted>Loading episode list…</div><button class=secondary id=all disabled>Mark full season watched</button><div id=epList></div>`;
+  let season=ensureSeason(x,si,source||m),eps=season.episodes||[],info=season.episodeInfo||[];
+  const expected=Number(source?.episodes||m.episodes||0);
+  const cachedPages=Math.floor(info.length/100)+1;
+  season.episodeInfo=info;
+  if(expected&&eps.length<expected)eps.push(...Array(expected-eps.length).fill(false));
+  season.episodes=eps;
+  const renderEpisodes=(hasMore=false)=>{
+    const total=expected||info.length||eps.length;
+    $("#epLoading").textContent=info.length
+      ? `${info.length}${total?` / ${total}`:""} episodes loaded${hasMore?" · more available":""}`
+      : (total?`${total} episodes`:`Episode data isn't available for this title yet.`);
+    $("#all").disabled=!eps.length;
+    $("#all").textContent=eps.length&&eps.every(Boolean)?"Unmark season":"Mark full season watched";
+    $("#epList").innerHTML=eps.map((d,i)=>{
+      let ep=info[i]||{};
+      return `<div class="episode ${d?"done":""}" data-i="${i}">
+        <div class=num>${d?"✓":i+1}</div>
+        <div><b>Episode ${i+1}${ep.title?` — ${esc(ep.title)}`:""}</b><div class=muted>${ep.synopsis?esc(strip(ep.synopsis)):(m.duration||"?")+" min"}</div></div>
+        <span>${d?"WATCHED":"›"}</span>
+      </div>`
+    }).join("");
+    let more=$("#loadMoreEpisodes");
+    if(more){more.hidden=!hasMore;more.disabled=false;more.textContent=hasMore?`Load more episodes (${info.length}${total?` / ${total}`:""})`:"No more episodes"}
+    bindEpisodeClicks();
+  };
+  const loadMore=async()=>{
+    const btn=$("#loadMoreEpisodes");
+    if(btn){btn.disabled=true;btn.textContent="Loading more episodes…"}
+    const start=Math.floor(info.length/100)+1;
+    const result=await jikanEpisodes(season.idMal,start,p=>{
+      $("#epLoading").textContent=`Loading episodes… ${info.length+p.loaded}${expected?` / ${expected}`:""}`;
+    });
+    if(result.items.length){
+      info=info.concat(result.items);
+      season.episodeInfo=info;
+      if(eps.length<info.length)eps.push(...Array(info.length-eps.length).fill(false));
+      if(expected&&eps.length<expected)eps.push(...Array(expected-eps.length).fill(false));
+      save();
+    }
+    renderEpisodes(result.hasMore);
+  };
+  const bindEpisodeClicks=()=>{
+    document.querySelectorAll("#epList .episode").forEach(e=>e.onclick=()=>{
+      let i=+e.dataset.i;
+      if(!eps[i]){
+        let missing=eps.slice(0,i).some(v=>!v);
+        if(missing){
+          if(confirm(`Have you watched all episodes up to Episode ${i+1}?\nOK = mark 1–${i+1}.\nCancel = only Episode ${i+1}.`))eps.fill(true,0,i+1);else eps[i]=true
+        }else eps[i]=true
+      }else eps[i]=false;
+      x.last=Date.now();save();renderEpisodes(false);renderWatch();
+    });
+  };
+  $("#eps").innerHTML=`<button class=x onclick="epDlg.close()">×</button><h2>${esc(title(m))} — ${esc(season.name)}</h2><div id=epLoading class=muted>Loading complete episode list…</div><button class=secondary id=all>Mark full season watched</button><button class="secondary loadMore" id="loadMoreEpisodes" hidden>Load more episodes</button><div id=epList></div>`;
   epDlg.showModal();
-  let fetched=await jikanEpisodes(season.idMal);
-  if(fetched.length){
-    info=fetched;season.episodeInfo=info;
-    if(eps.length<info.length)eps.push(...Array(info.length-eps.length).fill(false));
-  }else if(!eps.length && (source?.episodes||m.episodes)){
-    eps=season.episodes=Array(source?.episodes||m.episodes).fill(false);
-  }
-  if(!eps.length){
-    $("#epLoading").textContent="Episode data isn't available for this title yet.";
-    $("#all").disabled=true;save();return;
-  }
-  $("#epLoading").textContent=info.length?`${info.length} episodes`:`${eps.length} episodes`;
-  $("#all").disabled=false;
-  $("#all").textContent=eps.length&&eps.every(Boolean)?"Unmark season":"Mark full season watched";
-  $("#epList").innerHTML=eps.map((d,i)=>{let ep=info[i]||{};return `<div class="episode ${d?"done":""}" data-i="${i}">
-    <div class=num>${d?"✓":i+1}</div><div><b>Episode ${i+1}${ep.title?` — ${esc(ep.title)}`:""}</b><div class=muted>${ep.synopsis?esc(strip(ep.synopsis)):(m.duration||"?")+" min"}</div></div><span>${d?"WATCHED":"›"}</span></div>`}).join("");
-  $("#all").onclick=()=>{let next=!eps.every(Boolean);eps.fill(next);x.last=Date.now();save();openEpisodes(m,si,source)};
-  document.querySelectorAll("#epList .episode").forEach(e=>e.onclick=()=>{
-    let i=+e.dataset.i;
-    if(!eps[i]){
-      let missing=eps.slice(0,i).some(v=>!v);
-      if(missing){
-        if(confirm(`Have you watched all episodes up to Episode ${i+1}?\nOK = mark 1–${i+1}.\nCancel = only Episode ${i+1}.`))eps.fill(true,0,i+1);else eps[i]=true
-      }else eps[i]=true
-    }else eps[i]=false;
-    x.last=Date.now();save();openEpisodes(m,si,source);renderWatch()
+
+  // Use cached episode pages first. If the cache stops at 100, continue from page 2.
+  const startPage=info.length?Math.floor(info.length/100)+1:1;
+  const result=await jikanEpisodes(season.idMal,startPage,p=>{
+    $("#epLoading").textContent=`Loading episodes… ${info.length+p.loaded}${expected?` / ${expected}`:""}`;
   });
-  save()
+  if(result.items.length){
+    info=info.concat(result.items);
+    season.episodeInfo=info;
+    if(eps.length<info.length)eps.push(...Array(info.length-eps.length).fill(false));
+  }else if(!info.length&&expected&&!eps.length){
+    eps=season.episodes=Array(expected).fill(false);
+  }
+  if(expected&&eps.length<expected)eps.push(...Array(expected-eps.length).fill(false));
+  save();
+  renderEpisodes(result.hasMore);
+  $("#all").onclick=()=>{
+    const next=!eps.every(Boolean);
+    if(next&&expected&&info.length<expected){
+      if(!confirm(`This season has ${expected} episodes but only ${info.length} episode details are loaded.\nMark all ${expected} episodes watched anyway?`))return;
+    }
+    eps.fill(next);x.last=Date.now();save();renderEpisodes(result.hasMore);renderWatch();
+  };
+  $("#loadMoreEpisodes").onclick=loadMore;
 }
 function renderWatch(){let tab=document.querySelector("[data-tab].active")?.dataset.tab||"list";if(tab==="upcoming"){$("#watchContent").innerHTML="<p class=muted>Upcoming episodes from your watchlist will appear here when airing dates are available.</p>";return}let w=db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]);return e.some(Boolean)&&!e.every(Boolean)}).sort((a,b)=>b.last-a.last),p=db.list.filter(x=>x.seasons.flatMap(s=>s.episodes||[]).every(v=>!v));$("#watchContent").innerHTML=rows("WATCHING",w)+rows("PLAN TO WATCH",p)}
 function rows(h,a){return`<section><b>${h}</b>${a.length?a.map(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]),w=e.filter(Boolean).length;return`<div class=watch data-id="${x.id}"><div class=thumb><img src="${esc(x.data.coverImage?.large||"")}"></div><div><b>${esc(title(x.data))}</b><div class=muted>${w}/${e.length} episodes</div><div class=bar><i style="width:${e.length?w/e.length*100:0}%"></i></div></div></div>`}).join(""):"<p class=muted>Nothing here yet.</p>"}</section>`}

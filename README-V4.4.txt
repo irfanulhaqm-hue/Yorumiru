@@ -1,15 +1,5 @@
-YORUMIRU V4.4
+Yorumiru V4.4.1 — episode pagination fix
 
-Combined profile fixes from V4.3.2:
-- Working AniList character search for Favorite Characters.
-- Anime banner collection with search and selectable banners.
-- Manual profile avatar and background image upload remains available.
-- Anime favorite controls remain available on cards/details.
-- Existing V4/V4.3 data is migrated into V4.4 storage without intentionally clearing it.
+This patch fixes long-running anime episode loading. Jikan serves episode lists in pages of up to 100 episodes; V4.4 could stop after the first page. V4.4.1 continues through all pages with retry/backoff, preserves cached episode details, shows loading progress, and provides a Load more fallback if an upstream API request fails. Existing V4.4 localStorage data is migrated automatically.
 
-Files for GitHub Pages:
-- index.html
-- app.js
-- styles.css
-
-Upload/replace these files in the repository root and let GitHub Pages redeploy.
+Replace index.html, app.js and styles.css in the GitHub repository.
