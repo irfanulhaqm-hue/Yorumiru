@@ -198,17 +198,19 @@ input::placeholder{color:#74808c}
 }
 
 .hero{
-  height:300px;
+  height:322px;
   position:relative;
-  margin-bottom:58px;
-  border-radius:23px;
-  overflow:hidden;
+  margin-bottom:76px;
+  border-radius:24px;
+  overflow:visible;
   background:var(--surface);
   border:1px solid #293642;
   box-shadow:var(--shadow);
 }
 .banner{
-  height:228px;
+  height:244px;
+  border-radius:23px 23px 0 0;
+  overflow:hidden;
   position:relative;
   background:
     radial-gradient(circle at 78% 30%,#9a7cff25,transparent 34%),
@@ -225,20 +227,20 @@ input::placeholder{color:#74808c}
   background:linear-gradient(180deg,transparent 30%,#0d141b 100%);
 }
 .avatar{
-  position:absolute;bottom:-34px;left:24px;
-  width:92px;height:92px;border-radius:50%;
-  border:5px solid var(--bg);
+  position:absolute;bottom:-40px;left:28px;
+  width:112px;height:112px;border-radius:50%;
+  border:6px solid var(--bg);
   display:grid;place-items:center;
   background:linear-gradient(140deg,var(--accent),#5b9ff7);
   color:#fff;font-size:30px;font-weight:800;
   box-shadow:0 10px 28px #00000090;
 }
 .hero h2{
-  position:absolute;left:132px;bottom:10px;margin:0;
+  position:absolute;left:158px;bottom:15px;margin:0;
   font-size:23px;font-weight:700;letter-spacing:-.02em;
 }
 .hero #dots{
-  position:absolute;right:16px;bottom:10px;
+  position:absolute;right:16px;bottom:15px;
   width:42px;height:42px;padding:0;
   background:#0a1016cc;
   border:1px solid #ffffff12;
@@ -425,9 +427,9 @@ dialog::backdrop{background:#000c;backdrop-filter:blur(6px)}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .card{border-radius:17px}
   .body{padding:11px 12px 13px}
-  .hero{height:280px}
-  .banner{height:210px}
-  .hero h2{font-size:21px;left:124px}
+  .hero{height:306px;margin-bottom:72px;border-radius:21px}
+  .banner{height:226px;border-radius:20px 20px 0 0}
+  .hero h2{font-size:20px;left:146px;bottom:13px;max-width:calc(100% - 205px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .detailBanner{height:220px}
   .detailHead h1{font-size:22px}
 }
@@ -521,3 +523,27 @@ dialog::backdrop{background:#000c;backdrop-filter:blur(6px)}
 .result{align-items:center;color:var(--text);cursor:pointer;text-decoration:none}
 .result span{font-weight:700}
 @media(max-width:600px){.bannerGrid{grid-template-columns:1fr}.bannerChoice img{height:92px}}
+
+/* V4.4.2 profile frame refinement */
+.hero .banner{box-shadow:inset 0 0 0 1px #ffffff08}
+.avatar{z-index:7}
+.avatarEdit{z-index:8;left:108px;bottom:18px}
+.hero #dots{z-index:8}
+@media(max-width:600px){
+  .avatar{left:24px;width:104px;height:104px;border-width:5px;bottom:-38px}
+  .avatarEdit{left:99px;bottom:18px}
+  .hero #dots{right:14px;bottom:13px}
+}
+
+/* V4.4.4 upcoming episodes */
+.upLoading,.upEmpty{padding:28px 4px;color:var(--muted)}
+.upList{display:grid;gap:12px;margin-top:14px}
+.upCard{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:14px;padding:12px;background:linear-gradient(180deg,#121a22,#0e151c);border:1px solid #293642;border-radius:16px;cursor:pointer;transition:.2s ease}
+.upCard:hover{border-color:#4b5665;transform:translateY(-1px)}
+.upThumb{width:70px;height:92px;border-radius:11px;overflow:hidden;background:var(--surface2);border:1px solid #273440}
+.upThumb img{width:100%;height:100%;object-fit:cover;display:block}
+.upInfo h3{margin:0 0 3px;font-size:15px}
+.upEp{color:var(--teal);font-weight:700;margin-bottom:3px}
+.upInfo strong{display:inline-block;margin-top:5px;color:var(--accent-soft);font-size:12px}
+.upCard .chev{font-size:24px;color:var(--muted2)}
+@media(max-width:600px){.upCard{grid-template-columns:62px 1fr auto}.upThumb{width:62px;height:82px}.upInfo h3{font-size:14px}}

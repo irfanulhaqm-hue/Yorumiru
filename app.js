@@ -1,7 +1,10 @@
-const API="https://graphql.anilist.co",JIKAN="https://api.jikan.moe/v4",K="yorumiru-v4.4.1";
-let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem("yorumiru-v4.4")||localStorage.getItem("yorumiru-v4.3")||localStorage.getItem("yorumiru-v4")||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
+const API="https://graphql.anilist.co",JIKAN="https://api.jikan.moe/v4",K="yorumiru-v4.4.4";
+let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem("yorumiru-v4.4.3")||localStorage.getItem("yorumiru-v4.4.2")||localStorage.getItem("yorumiru-v4.4")||localStorage.getItem("yorumiru-v4.3")||localStorage.getItem("yorumiru-v4")||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
 db.list=db.list||[];db.favorites=db.favorites||[];db.favChars=db.favChars||[];db.profile=db.profile||{name:"Yorumiru User"};db.profile.banner=db.profile.banner||"";db.profile.avatar=db.profile.avatar||"";
 
+const imageProxy=u=>{u=String(u||"");return /^https?:\/\//.test(u)&&!u.includes("images.weserv.nl")?"https://images.weserv.nl/?url="+encodeURIComponent(u):u};
+window.imgFallback=el=>{if(!el||el.dataset.fallbackDone)return;const src=el.dataset.original||el.currentSrc||el.src;if(!src||src.startsWith("data:")||src.includes("images.weserv.nl")){el.style.opacity=".35";return}el.dataset.fallbackDone="1";el.src=imageProxy(src)};
+const imageTag=(src,extra="")=>`<img src="${esc(src)}" data-original="${esc(src)}" onerror="imgFallback(this)" ${extra}>`;
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])),save=()=>localStorage.setItem(K,JSON.stringify(db));
 const Q=`query($search:String,$genre:String){Page(page:1,perPage:24){media(search:$search,genre:$genre,type:ANIME,isAdult:false,sort:[TRENDING_DESC,POPULARITY_DESC]){id idMal title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}recommendations(perPage:6){nodes{mediaRecommendation{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}}}}`;
 async function api(v){let r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:Q,variables:v})});let j=await r.json();return j?.data?.Page?.media||[]}
@@ -47,7 +50,7 @@ function toggleFav(m){
 }
 function card(m){
   let e=document.createElement("article");e.className="card";
-  e.innerHTML=`<div class=poster><img src="${esc(m.coverImage?.large||"")}" loading="lazy"><button class="favBtn ${isFav(m.id)?"on":""}" aria-label="Favorite">${isFav(m.id)?"♥":"♡"}</button></div><div class=body><div class=title>${esc(title(m))}</div><div class=meta>${m.seasonYear||""} · ${m.episodes||"?"} eps</div></div>`;
+  e.innerHTML=`<div class=poster>${imageTag(m.coverImage?.large||"","loading=\"lazy\"")}<button class="favBtn ${isFav(m.id)?"on":""}" aria-label="Favorite">${isFav(m.id)?"♥":"♡"}</button></div><div class=body><div class=title>${esc(title(m))}</div><div class=meta>${m.seasonYear||""} · ${m.episodes||"?"} eps</div></div>`;
   e.onclick=ev=>{
     if(ev.target.closest(".favBtn")){
       ev.stopPropagation();
@@ -71,13 +74,13 @@ function relationSeasons(m){
 function openAnime(m){
   let item=db.list.find(x=>x.id===m.id),chars=m.characters?.edges||[],recs=(m.recommendations?.nodes||[]).map(x=>x.mediaRecommendation).filter(Boolean),seasons=relationSeasons(m);
   $("#anime").innerHTML=`<button class=x onclick="animeDlg.close()">×</button>
-  <div class=detailBanner><img src="${esc(m.bannerImage||m.coverImage?.large||"")}"></div>
-  <div class=detailHead><div class=detailPoster><img src="${esc(m.coverImage?.large||"")}"></div><div><h1>${esc(title(m))}</h1><div class=muted>${m.seasonYear||""} · ${m.status||""} · ${m.duration||"?"} min/ep</div></div></div>
+  <div class=detailBanner>${imageTag(m.bannerImage||m.coverImage?.large||"")}</div>
+  <div class=detailHead><div class=detailPoster>${imageTag(m.coverImage?.large||"")}</div><div><h1>${esc(title(m))}</h1><div class=muted>${m.seasonYear||""} · ${m.status||""} · ${m.duration||"?"} min/ep</div></div></div>
   <div class="detailActions"><button class=primary id=add>${item?"In watchlist":"＋ Add to watchlist"}</button><button class="favoriteAction ${isFav(m.id)?"on":""}" id=favAnime>${isFav(m.id)?"♥ Favorited":"♡ Favorite"}</button></div>
   <section><h3>About</h3><p class=muted>${strip(m.description)||"No description available."}</p></section>
-  <section><h3>Characters</h3><div class=chars>${chars.map(c=>`<div class=cmini><img src="${esc(c.node.image?.large||"")}"><small>${esc(c.node.name.full)}</small></div>`).join("")}</div></section>
+  <section><h3>Characters</h3><div class=chars>${chars.map(c=>`<div class=cmini>${imageTag(c.node.image?.large||"")}<small>${esc(c.node.name.full)}</small></div>`).join("")}</div></section>
   <section><h3>Seasons</h3>${seasons.map((s,i)=>`<div class=season data-s="${i}"><span>${s.name}<br><small class=muted>${s.episodes||"?"} episodes</small></span>›</div>`).join("")}</section>
-  <section><h3>Similar anime</h3><div class=similar>${recs.map(x=>`<div class="sim" data-id="${x.id}"><img src="${esc(x.coverImage?.large||"")}" loading="lazy"><b>${esc(title(x))}</b></div>`).join("")||"<span class=muted>No recommendations available.</span>"}</div></section>
+  <section><h3>Similar anime</h3><div class=similar>${recs.map(x=>`<div class="sim" data-id="${x.id}">${imageTag(x.coverImage?.large||"","loading=\"lazy\"")}<b>${esc(title(x))}</b></div>`).join("")||"<span class=muted>No recommendations available.</span>"}</div></section>
   <section><h3>Comments</h3><div class=muted>Comments will become shared with the account system.</div></section>`;
   $("#add").onclick=()=>add(m);$("#favAnime").onclick=()=>{let on=toggleFav(m);$("#favAnime").classList.toggle("on",on);$("#favAnime").textContent=on?"♥ Favorited":"♡ Favorite"};
   document.querySelectorAll(".season").forEach(s=>s.onclick=()=>openEpisodes(m,+s.dataset.s,seasons[+s.dataset.s].media));
@@ -189,8 +192,57 @@ async function openEpisodes(m,si,source){
   };
   $("#loadMoreEpisodes").onclick=loadMore;
 }
-function renderWatch(){let tab=document.querySelector("[data-tab].active")?.dataset.tab||"list";if(tab==="upcoming"){$("#watchContent").innerHTML="<p class=muted>Upcoming episodes from your watchlist will appear here when airing dates are available.</p>";return}let w=db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]);return e.some(Boolean)&&!e.every(Boolean)}).sort((a,b)=>b.last-a.last),p=db.list.filter(x=>x.seasons.flatMap(s=>s.episodes||[]).every(v=>!v));$("#watchContent").innerHTML=rows("WATCHING",w)+rows("PLAN TO WATCH",p)}
-function rows(h,a){return`<section><b>${h}</b>${a.length?a.map(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]),w=e.filter(Boolean).length;return`<div class=watch data-id="${x.id}"><div class=thumb><img src="${esc(x.data.coverImage?.large||"")}"></div><div><b>${esc(title(x.data))}</b><div class=muted>${w}/${e.length} episodes</div><div class=bar><i style="width:${e.length?w/e.length*100:0}%"></i></div></div></div>`}).join(""):"<p class=muted>Nothing here yet.</p>"}</section>`}
+const UPCOMING_Q=`query($ids:[Int]){Page(page:1,perPage:50){media(id_in:$ids,type:ANIME){id title{romaji english}coverImage{large}episodes duration seasonYear status nextAiringEpisode{episode airingAt}}}}`;
+async function refreshUpcoming(){
+  const ids=db.list.map(x=>Number(x.id)).filter(Number.isFinite);
+  if(!ids.length)return [];
+  try{
+    const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:UPCOMING_Q,variables:{ids}})});
+    if(!r.ok)throw new Error("AniList request failed");
+    const j=await r.json();
+    const media=j?.data?.Page?.media||[];
+    media.forEach(m=>{const x=db.list.find(z=>Number(z.id)===Number(m.id));if(x)x.data={...x.data,...m};});
+    save();
+    return media;
+  }catch(err){console.warn("Upcoming refresh failed",err);return db.list.map(x=>x.data).filter(Boolean)}
+}
+function dateText(ts){
+  const d=new Date(Number(ts)*1000);
+  return d.toLocaleString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"});
+}
+function countdown(ts){
+  const ms=Number(ts)*1000-Date.now();
+  if(ms<=0)return "Airing now";
+  const mins=Math.floor(ms/60000), days=Math.floor(mins/1440), hrs=Math.floor((mins%1440)/60);
+  if(days>0)return `in ${days}d ${hrs}h`;
+  if(hrs>0)return `in ${hrs}h ${mins%60}m`;
+  return `in ${Math.max(1,mins)}m`;
+}
+function upcomingRows(items){
+  if(!items.length)return `<div class="upEmpty"><b>No upcoming episodes found</b><p class="muted">Your watchlist is checked automatically. Shows without a scheduled next episode are left out.</p></div>`;
+  return `<section><b>UPCOMING EPISODES</b><div class="upList">${items.map(x=>{
+    const a=x.nextAiringEpisode; return `<div class="upCard" data-id="${x.id}">
+      <div class="upThumb">${imageTag(x.coverImage?.large||"")}</div>
+      <div class="upInfo"><h3>${esc(title(x))}</h3><div class="upEp">Episode ${a.episode}</div><div class="muted">${dateText(a.airingAt)}</div><strong>${countdown(a.airingAt)}</strong></div>
+      <span class="chev">›</span>
+    </div>`
+  }).join("")}</div></section>`;
+}
+async function renderUpcoming(){
+  $("#watchContent").innerHTML=`<div class="upLoading">Checking your watchlist for upcoming episodes…</div>`;
+  const media=await refreshUpcoming();
+  const now=Math.floor(Date.now()/1000)-120;
+  const items=media.filter(m=>m?.nextAiringEpisode?.airingAt && Number(m.nextAiringEpisode.airingAt)>now).sort((a,b)=>Number(a.nextAiringEpisode.airingAt)-Number(b.nextAiringEpisode.airingAt));
+  $("#watchContent").innerHTML=upcomingRows(items);
+  document.querySelectorAll(".upCard").forEach(el=>el.onclick=()=>{const x=db.list.find(z=>Number(z.id)===Number(el.dataset.id));if(x)openAnime(x.data)});
+}
+function renderWatch(){
+  let tab=document.querySelector("[data-tab].active")?.dataset.tab||"list";
+  if(tab==="upcoming"){renderUpcoming();return}
+  let w=db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]);return e.some(Boolean)&&!e.every(Boolean)}).sort((a,b)=>b.last-a.last),p=db.list.filter(x=>x.seasons.flatMap(s=>s.episodes||[]).every(v=>!v));
+  $("#watchContent").innerHTML=rows("WATCHING",w)+rows("PLAN TO WATCH",p)
+}
+function rows(h,a){return`<section><b>${h}</b>${a.length?a.map(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]),w=e.filter(Boolean).length;return`<div class=watch data-id="${x.id}"><div class=thumb>${imageTag(x.data.coverImage?.large||"")}</div><div><b>${esc(title(x.data))}</b><div class=muted>${w}/${e.length} episodes</div><div class=bar><i style="width:${e.length?w/e.length*100:0}%"></i></div></div></div>`}).join(""):"<p class=muted>Nothing here yet.</p>"}</section>`}
 function profile(){
   let w=db.list.reduce((n,x)=>n+x.seasons.flatMap(s=>s.episodes||[]).filter(Boolean).length,0);
   let mins=db.list.reduce((n,x)=>n+x.seasons.flatMap(s=>s.episodes||[]).filter(Boolean).length*(x.data.duration||24),0);
@@ -200,10 +252,10 @@ function profile(){
 
   let fav=db.list.filter(x=>db.favorites.includes(x.id));
   $("#favShows").innerHTML=fav.length
-    ? fav.map(x=>`<div class="mini favMini" data-fav-id="${x.id}"><div class="miniImg"><img src="${esc(x.data.coverImage?.large||"")}><button class="miniHeart">♥</button></div><b>${esc(title(x.data))}</b></div>`).join("")
+    ? fav.map(x=>`<div class="mini favMini" data-fav-id="${x.id}"><div class="miniImg">${imageTag(x.data.coverImage?.large||"")}<button class="miniHeart">♥</button></div><b>${esc(title(x.data))}</b></div>`).join("")
     : "<span class=muted>No favorites yet. Favorite an anime with ♡ to see it here.</span>";
 
-  $("#favChars").innerHTML=db.favChars.map((c,i)=>`<div class="char"><div class="charImg"><img src="${esc(c.image||"")}><button class="removeChar" data-char="${i}">×</button></div><small>${esc(c.name)}</small></div>`).join("")||"<span class=muted>Add characters you like.</span>";
+  $("#favChars").innerHTML=db.favChars.map((c,i)=>`<div class="char"><div class="charImg">${imageTag(c.image||"")}<button class="removeChar" data-char="${i}">×</button></div><small>${esc(c.name)}</small></div>`).join("")||"<span class=muted>Add characters you like.</span>";
 
   $("#collection").innerHTML=["Watching","Completed","Plan to Watch"].map((n,i)=>`<div class="season collectionItem" data-status="${i}"><span>${n}</span><b>${count(i)}</b><span class="chev">›</span></div>`).join("");
 
@@ -217,11 +269,11 @@ document.addEventListener("click",e=>{let r=e.target.closest(".watch");if(r){let
 function applyProfileImages(){
   let b=$("#profileBanner"),a=$("#profileAvatar");
   if(b){
-    b.style.backgroundImage=db.profile.banner?`url("${db.profile.banner}")`:"";
+    b.style.backgroundImage=db.profile.banner?`url("${imageProxy(db.profile.banner)}")`:"";
     b.classList.toggle("hasImage",!!db.profile.banner);
   }
   if(a){
-    if(db.profile.avatar){a.style.backgroundImage=`url("${db.profile.avatar}")`;a.textContent=""}
+    if(db.profile.avatar){a.style.backgroundImage=`url("${imageProxy(db.profile.avatar)}")`;a.textContent=""}
     else{a.style.backgroundImage="";a.textContent=(db.profile.name||"Y")[0].toUpperCase()}
   }
 }
@@ -272,7 +324,7 @@ $("#cq").oninput=async()=>{
       variables:{s:q}
     })});
     let j=await r.json(),list=j?.data?.Page?.characters||[];
-    $("#chars").innerHTML=list.length?list.map(c=>`<button class=result data-cid="${c.id}" data-cname="${esc(c.name.full)}" data-cimg="${esc(c.image?.large||"")}"><img src="${esc(c.image?.large||"")}"><span>${esc(c.name.full)}</span></button>`).join(""):"<p class=muted>No character found.</p>";
+    $("#chars").innerHTML=list.length?list.map(c=>`<button class=result data-cid="${c.id}" data-cname="${esc(c.name.full)}" data-cimg="${esc(c.image?.large||"")}">${imageTag(c.image?.large||"")}<span>${esc(c.name.full)}</span></button>`).join(""):"<p class=muted>No character found.</p>";
   }catch{$("#chars").innerHTML="<p class=muted>Could not search right now.</p>"}
 };
 
@@ -310,7 +362,7 @@ async function loadBanners(query=""){
   try{
     let rows=await api({search:query.trim()||null,genre:null});
     rows=rows.filter(m=>m.bannerImage).slice(0,24);
-    $("#bannerList").innerHTML=rows.length?rows.map(m=>`<button class="bannerChoice" data-banner="${esc(m.bannerImage)}" data-title="${esc(title(m))}"><img src="${esc(m.bannerImage)}"><span>${esc(title(m))}</span></button>`).join(""):"<p class=muted>No banners found for that anime.</p>";
+    $("#bannerList").innerHTML=rows.length?rows.map(m=>`<button class="bannerChoice" data-banner="${esc(m.bannerImage)}" data-title="${esc(title(m))}">${imageTag(m.bannerImage||"")}<span>${esc(title(m))}</span></button>`).join(""):"<p class=muted>No banners found for that anime.</p>";
   }catch{$("#bannerList").innerHTML="<p class=muted>Could not load banners right now.</p>"}
 }
 function openBannerPicker(){
