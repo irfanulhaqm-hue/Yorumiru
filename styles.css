@@ -547,3 +547,34 @@ dialog::backdrop{background:#000c;backdrop-filter:blur(6px)}
 .upInfo strong{display:inline-block;margin-top:5px;color:var(--accent-soft);font-size:12px}
 .upCard .chev{font-size:24px;color:var(--muted2)}
 @media(max-width:600px){.upCard{grid-template-columns:62px 1fr auto}.upThumb{width:62px;height:82px}.upInfo h3{font-size:14px}}
+
+/* V4.4.5 — Explore redesign: editorial spotlight + shuffled discovery grid */
+#feed{align-items:start}
+#feed:not(.searchResults) .card.feature{
+  grid-column:span 2;
+  grid-row:span 2;
+  min-height:100%;
+}
+#feed:not(.searchResults) .card.feature .poster{
+  aspect-ratio:16/10;
+  min-height:245px;
+}
+#feed:not(.searchResults) .card.feature .body{padding:16px 17px 18px}
+#feed:not(.searchResults) .card.feature .title{font-size:16px;white-space:normal;line-height:1.35}
+#feed:not(.searchResults) .card.feature .meta{font-size:12px;margin-top:6px}
+#feed:not(.searchResults) .card.feature .favBtn{width:46px;height:46px;font-size:22px}
+#feed:not(.searchResults) .card:not(.feature){animation:recommendIn .3s ease both}
+#feed:not(.searchResults) .card:nth-child(2){animation-delay:.025s}
+#feed:not(.searchResults) .card:nth-child(3){animation-delay:.05s}
+#feed:not(.searchResults) .card:nth-child(4){animation-delay:.075s}
+#feed:not(.searchResults) .card:nth-child(5){animation-delay:.1s}
+@keyframes recommendIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:850px){
+  #feed:not(.searchResults) .card.feature{grid-column:span 2;grid-row:span 1}
+  #feed:not(.searchResults) .card.feature .poster{aspect-ratio:16/9;min-height:0}
+}
+@media(max-width:600px){
+  #feed:not(.searchResults) .card.feature .poster{aspect-ratio:16/9}
+  #feed:not(.searchResults) .card.feature .body{padding:13px 14px 15px}
+  #feed:not(.searchResults) .card.feature .title{font-size:14px}
+}
