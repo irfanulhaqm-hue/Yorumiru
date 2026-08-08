@@ -1,4 +1,4 @@
-const API="https://graphql.anilist.co",JIKAN="https://api.jikan.moe/v4",K="yorumiru-v4.4.5";
+const API="https://graphql.anilist.co",JIKAN="https://api.jikan.moe/v4",K="yorumiru-v4.5";
 let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem("yorumiru-v4.4.3")||localStorage.getItem("yorumiru-v4.4.2")||localStorage.getItem("yorumiru-v4.4")||localStorage.getItem("yorumiru-v4.3")||localStorage.getItem("yorumiru-v4")||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
 db.list=db.list||[];db.favorites=db.favorites||[];db.favChars=db.favChars||[];db.profile=db.profile||{name:"Yorumiru User"};db.profile.banner=db.profile.banner||"";db.profile.avatar=db.profile.avatar||"";
 
@@ -6,43 +6,83 @@ const imageProxy=u=>{u=String(u||"");return /^https?:\/\//.test(u)&&!u.includes(
 window.imgFallback=el=>{if(!el||el.dataset.fallbackDone)return;const src=el.dataset.original||el.currentSrc||el.src;if(!src||src.startsWith("data:")||src.includes("images.weserv.nl")){el.style.opacity=".35";return}el.dataset.fallbackDone="1";el.src=imageProxy(src)};
 const imageTag=(src,extra="")=>`<img src="${esc(src)}" data-original="${esc(src)}" onerror="imgFallback(this)" ${extra}>`;
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])),save=()=>localStorage.setItem(K,JSON.stringify(db));
+
+const ICONS={
+  search:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5"/></svg>`,
+  shuffle:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h3c5 0 6 10 11 10h4"/><path d="m18 14 3 3-3 3"/><path d="M3 17h3c1.8 0 3-1.1 3.8-2.5"/><path d="M15.2 9.5C16 8.1 17.2 7 19 7h2"/><path d="m18 4 3 3-3 3"/></svg>`,
+  more:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>`,
+  edit:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5a2.1 2.1 0 0 0-3-3z"/><path d="m14.5 7.5 2 2"/></svg>`,
+  plus:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`,
+  home:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>`,
+  list:`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`,
+  user:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20c.8-3.3 3-5 6.5-5s5.7 1.7 6.5 5"/></svg>`,
+  heart:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.8c0 5.3-8.8 10-8.8 10S3.2 14.1 3.2 8.8A4.3 4.3 0 0 1 11 6.2a4.3 4.3 0 0 1 7.8 2.6Z"/></svg>`,
+  play:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 9 6-9 6z"/></svg>`
+};
+function mountIcons(){document.querySelectorAll('.iconSlot').forEach(el=>{const k=el.dataset.icon;if(ICONS[k])el.innerHTML=ICONS[k]})}
+mountIcons();
 const Q=`query($search:String,$genre:String,$sort:[MediaSort]){Page(page:1,perPage:36){media(search:$search,genre:$genre,type:ANIME,isAdult:false,sort:$sort){id idMal title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}recommendations(perPage:6){nodes{mediaRecommendation{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}}}}`;
 async function api(v){let r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:Q,variables:v})});let j=await r.json();return j?.data?.Page?.media||[]}
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-let exploreTimer=null,lastExploreShuffle=Date.now();
-async function feed(opts={}){
-  let query=$("#q").value.trim();
-  let rows=[];
-  try{
-    if(query){
-      rows=await api({search:query,genre:genre||null,sort:["SEARCH_MATCH_DESC"]});
-    }else{
-      const [trending,popular,recent]=await Promise.all([
-        api({search:null,genre:genre||null,sort:["TRENDING_DESC"]}),
-        api({search:null,genre:genre||null,sort:["POPULARITY_DESC"]}),
-        api({search:null,genre:genre||null,sort:["START_DATE_DESC"]})
-      ]);
-      const seen=new Set();
-      rows=shuffle([...trending,...popular,...recent].filter(m=>{if(seen.has(m.id))return false;seen.add(m.id);return true}));
-      rows=rows.slice(0,24);
-    }
-  }catch(e){console.warn("Explore feed failed",e)}
-  const feedEl=$("#feed");
-  feedEl.classList.toggle("searchResults",!!query);
-  if(!query)lastExploreShuffle=Date.now();
-  feedEl.innerHTML="";
-  rows.forEach((m,i)=>{let el=card(m);if(!query&&i===0)el.classList.add("feature");feedEl.append(el)});
+let exploreTimer=null,lastExploreShuffle=Date.now(),explorePools={trending:[],classic:[],recent:[]};
+async function fetchPool(sort,limit=18){
+  try{return await api({search:null,genre:genre||null,sort})}catch(e){console.warn("Explore pool failed",sort,e);return []}
+}
+function uniqueRows(rows){const seen=new Set();return rows.filter(m=>m&& !seen.has(m.id)&&(seen.add(m.id),true))}
+function miniCard(m,opts={}){
+  const el=document.createElement("article");el.className="railCard";
+  const prog=opts.getProgress?opts.getProgress(m):{watched:opts.watched||0,total:opts.total||m.episodes||0}; const watched=prog.watched,total=prog.total;
+  el.innerHTML=`<div class="railPoster">${imageTag(m.coverImage?.large||"","loading=\"lazy\"")}<button class="railFav ${isFav(m.id)?"on":""}" aria-label="Favorite">${isFav(m.id)?"♥":"♡"}</button>${opts.badge?`<span class="railBadge">${esc(opts.badge)}</span>`:""}</div><div class="railTitle">${esc(title(m))}</div><div class="railMeta">${m.seasonYear||""}${m.averageScore?` · ${Math.round(m.averageScore/10*10)/10}/10`:""}</div>${opts.progress?`<div class="railProgress"><i style="width:${total?Math.min(100,watched/total*100):0}%"></i></div>`:""}`;
+  el.onclick=e=>{
+    if(e.target.closest('.railFav')){e.stopPropagation();let on=toggleFav(m);let b=el.querySelector('.railFav');b.classList.toggle('on',on);b.textContent=on?'♥':'♡';return}
+    openAnime(m)
+  };
+  return el
+}
+function renderRail(id,rows,opts={}){
+  const el=$(id);if(!el)return;el.innerHTML="";
+  rows.forEach(m=>el.appendChild(miniCard(m,opts)));
+  if(!rows.length)el.innerHTML='<span class="railEmpty">Nothing to show right now.</span>';
+}
+function renderContinue(){
+  const active=db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]),w=e.filter(Boolean).length;return w>0&&e.some(v=>!v)}).sort((a,b)=>b.last-a.last).slice(0,8);
+  const section=$("#continueSection");
+  section.hidden=!active.length;
+  renderRail("#continueRail",active.map(x=>x.data),{progress:true,badge:"Continue",getProgress:m=>{const x=active.find(z=>z.id===m.id);const e=x?x.seasons.flatMap(s=>s.episodes||[]):[];return {watched:e.filter(Boolean).length,total:e.length}}});
+}
+function renderSpotlight(rows){
+  const m=shuffle(rows.slice()).find(x=>x.bannerImage)||rows[0];
+  if(!m){$("#spotlight").innerHTML="";return}
+  $("#spotlight").innerHTML=`<article class="spotlight" data-id="${m.id}"><div class="spotImage">${imageTag(m.bannerImage||m.coverImage?.large||"")}</div><div class="spotShade"></div><div class="spotCopy"><small>YOROMIRU PICK</small><h1>${esc(title(m))}</h1><div class="spotMeta">${m.seasonYear||""} · ${m.duration||"?"} min/ep${m.averageScore?` · ★ ${(m.averageScore/10).toFixed(1)}`:""}</div><p>${esc(strip(m.description)||"Discover something worth watching next.")}</p><button class="primary spotBtn">View anime</button></div></article>`;
+  $("#spotlight .spotlight").onclick=e=>{if(e.target.closest('.spotBtn')||!e.target.closest('button'))openAnime(m)};
+}
+async function buildExplore(){
+  const [trending,popular,recent]=await Promise.all([fetchPool(["TRENDING_DESC"]),fetchPool(["POPULARITY_DESC"]),fetchPool(["START_DATE_DESC"])]);
+  explorePools.trending=shuffle(uniqueRows(trending).slice(0,18));
+  explorePools.classic=shuffle(uniqueRows(popular).slice(0,18));
+  explorePools.recent=shuffle(uniqueRows(recent).slice(0,18));
+  renderSpotlight([...explorePools.trending,...explorePools.classic]);
+  renderContinue();
+  renderRail("#trendingRail",shuffle(explorePools.trending.slice(0,10)));
+  renderRail("#classicRail",shuffle(explorePools.classic.slice(0,10)));
+  renderRail("#recentRail",shuffle(explorePools.recent.slice(0,10)));
+  lastExploreShuffle=Date.now();
+}
+async function feed(){
+  const query=$("#q").value.trim();
+  const discovery=$("#discovery"),searchResults=$("#searchResults");
+  if(!query){discovery.hidden=false;searchResults.hidden=true;await buildExplore();return}
+  discovery.hidden=true;searchResults.hidden=false;searchResults.innerHTML='<p class="muted searchLoading">Searching…</p>';
+  let rows=[];try{rows=await api({search:query,genre:genre||null,sort:["SEARCH_MATCH_DESC"]})}catch(e){console.warn("Search failed",e)}
+  searchResults.innerHTML="";uniqueRows(rows).forEach(m=>searchResults.append(card(m)));
+  if(!rows.length)searchResults.innerHTML='<div class="searchEmpty"><b>No anime found</b><p class="muted">Try another title or remove the genre filter.</p></div>';
 }
 function scheduleExploreShuffle(){
   clearInterval(exploreTimer);
-  exploreTimer=setInterval(()=>{
-    const page=$("#explore");
-    if(page?.classList.contains("active")&&!$("#q").value.trim())feed({reshuffle:true});
-  },8*60*1000);
+  exploreTimer=setInterval(()=>{if($("#explore")?.classList.contains("active")&&!$("#q").value.trim())buildExplore()},8*60*1000)
 }
-document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible"&&Date.now()-lastExploreShuffle>=8*60*1000&&$("#explore")?.classList.contains("active")&&!$("#q").value.trim())feed({reshuffle:true});
-});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-lastExploreShuffle>=8*60*1000&&$("#explore")?.classList.contains("active")&&!$("#q").value.trim())buildExplore()});
+
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function fetchJikanPage(malId,page,attempt=0){
   try{
@@ -98,10 +138,12 @@ function card(m){
   return e
 }
 const genres=["All","Action","Adventure","Comedy","Drama","Fantasy","Horror","Romance","Sci-Fi","Sports","Thriller"];$("#genres").innerHTML=genres.map(g=>`<button data-g="${g==="All"?"":g}">${g}</button>`).join("");document.querySelector("#genres button").classList.add("active");
-$("#genres").onclick=e=>{if(e.target.tagName==="BUTTON"){genre=e.target.dataset.g;document.querySelectorAll("#genres button").forEach(b=>b.classList.toggle("active",b.dataset.g===genre));feed({reshuffle:true})}};
+$("#genres").onclick=e=>{if(e.target.tagName==="BUTTON"){genre=e.target.dataset.g;document.querySelectorAll("#genres button").forEach(b=>b.classList.toggle("active",b.dataset.g===genre));feed()}};
 let searchDebounce;
 $("#q").oninput=()=>{clearTimeout(searchDebounce);searchDebounce=setTimeout(()=>feed(),260)};
 $("#search").onclick=()=>{$("#q").focus()};
+$("#shuffleExplore").onclick=()=>{if(!$("#q").value.trim())buildExplore()};
+document.querySelectorAll(".railShuffle").forEach(b=>b.onclick=()=>{const key=b.dataset.rail,rows=explorePools[key]||[];renderRail("#"+key+"Rail",shuffle(rows.slice(0,10)))});
 
 function relationSeasons(m){
   let seasons=[{name:"Season 1",episodes:m.episodes||0,media:m}];
@@ -416,4 +458,4 @@ $("#bannerList").onclick=e=>{
   let b=e.target.closest(".bannerChoice");if(!b)return;
   db.profile.banner=b.dataset.banner;save();applyProfileImages();bannerDlg.close();
 };
-feed({reshuffle:true});scheduleExploreShuffle();renderWatch();profile();
+feed();scheduleExploreShuffle();renderWatch();profile();
