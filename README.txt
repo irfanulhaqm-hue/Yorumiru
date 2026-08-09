@@ -1,10 +1,5 @@
-Yorumiru v4.5.3 — Profile artwork rendering fix
+Yorumiru v4.5.5 — series-family fix
 
-This patch preserves the v4.5.2 design and data model.
-Only the profile banner/avatar image loading was changed, plus the cache-busting version.
+This patch keeps the existing v4.5 design and fixes multi-season franchises. PREQUEL/SEQUEL chains are resolved recursively, so a title such as Attack on Titan opens as one series page with the canonical four TV seasons. Existing separate season records are consolidated into the root series and their watched progress is merged.
 
-Replace index.html, app.js and styles.css in GitHub Pages.
-Do not clear localStorage.
-
-Profile remote images now try the original URL first and the image proxy second.
-Uploaded data:image files continue to work directly.
+Upload index.html, app.js and styles.css to the repository. Do not delete browser storage.

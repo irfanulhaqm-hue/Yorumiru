@@ -21,8 +21,10 @@ const ICONS={
 };
 function mountIcons(){document.querySelectorAll('.iconSlot').forEach(el=>{const k=el.dataset.icon;if(ICONS[k])el.innerHTML=ICONS[k]})}
 mountIcons();
-const Q=`query($search:String,$genre:String,$sort:[MediaSort]){Page(page:1,perPage:36){media(search:$search,genre:$genre,type:ANIME,isAdult:false,sort:$sort){id idMal title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}recommendations(perPage:6){nodes{mediaRecommendation{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}}}}`;
+const Q=`query($search:String,$genre:String,$sort:[MediaSort]){Page(page:1,perPage:36){media(search:$search,genre:$genre,type:ANIME,isAdult:false,sort:$sort){id idMal type format title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id idMal type format title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore status nextAiringEpisode{episode airingAt}}}}recommendations(perPage:6){nodes{mediaRecommendation{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}}}}`;
+const MEDIA_Q=`query($id:Int!){Media(id:$id,type:ANIME){id idMal type format title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id idMal type format title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore status nextAiringEpisode{episode airingAt}}}}recommendations(perPage:6){nodes{mediaRecommendation{id idMal title{romaji english}coverImage{large}episodes seasonYear}}}}}`;
 async function api(v){let r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:Q,variables:v})});let j=await r.json();return j?.data?.Page?.media||[]}
+async function fetchMedia(id){let r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:MEDIA_Q,variables:{id:Number(id)}})});let j=await r.json();return j?.data?.Media||null}
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 let exploreTimer=null,lastExploreShuffle=Date.now(),explorePools={trending:[],classic:[],recent:[]};
 async function fetchPool(sort,limit=18){
@@ -160,29 +162,110 @@ $("#search").onclick=()=>{$("#q").focus()};
 $("#shuffleExplore").onclick=()=>{if(!$("#q").value.trim())buildExplore()};
 document.querySelectorAll(".railShuffle").forEach(b=>b.onclick=()=>{const key=b.dataset.rail,rows=explorePools[key]||[];renderRail("#"+key+"Rail",shuffle(rows.slice(0,10)))});
 
-function relationSeasons(m){
-  // Build the complete sequel chain instead of only reading the first
-  // relation level. This keeps multi-season anime together.
-  const seasons=[];
-  const seen=new Set();
-  let current=m;
-  let guard=0;
-  while(current && !seen.has(current.id) && guard++<20){
-    seen.add(current.id);
-    seasons.push({
-      name:`Season ${seasons.length+1}`,
-      episodes:airedEpisodes(current),
-      planned:plannedEpisodes(current),
-      id:current.id,
-      media:current
-    });
-    const edge=current.relations?.edges?.find(x=>x.relationType==="SEQUEL");
-    current=edge?.node||null;
-  }
-  return seasons;
+function mainSeasonFormat(media){
+  return media?.type==="ANIME" && ["TV","TV_SHORT"].includes(media?.format);
 }
-function openAnime(m){
-  let item=db.list.find(x=>x.id===m.id),chars=m.characters?.edges||[],recs=(m.recommendations?.nodes||[]).map(x=>x.mediaRecommendation).filter(Boolean),seasons=relationSeasons(m);
+function directRelated(media,type){
+  return (media?.relations?.edges||[]).filter(e=>e.relationType===type&&mainSeasonFormat(e.node)).map(e=>e.node);
+}
+async function buildSeriesFamily(seed){
+  // Resolve the whole PREQUEL/SEQUEL family. The search query only gives one
+  // relation level, so we explicitly fetch each related title until the chain
+  // is exhausted. This prevents Season 2/3/4 from becoming separate pages.
+  const cache=new Map(), queue=[seed?.id], seen=new Set();
+  cache.set(seed?.id,seed);
+  while(queue.length && seen.size<30){
+    const id=Number(queue.shift());
+    if(!id||seen.has(id))continue;
+    seen.add(id);
+    let media=cache.get(id);
+    if(!media || !media.relations?.edges){
+      try{media=await fetchMedia(id);if(media)cache.set(id,media)}catch{}
+    }
+    if(!media)continue;
+    for(const e of (media.relations?.edges||[])){
+      if(!["PREQUEL","SEQUEL"].includes(e.relationType)||!mainSeasonFormat(e.node))continue;
+      const n=e.node;
+      if(!cache.has(n.id))cache.set(n.id,n);
+      if(!seen.has(n.id))queue.push(n.id);
+    }
+  }
+  const family=[...cache.values()].filter(mainSeasonFormat);
+  // Keep only the connected PREQUEL/SEQUEL component, then order by release
+  // year. For the normal seasonal franchise structure this produces the
+  // canonical Season 1, Season 2, Season 3, Season 4 order.
+  family.sort((a,b)=>(a.seasonYear||9999)-(b.seasonYear||9999)||a.id-b.id);
+  return family;
+}
+async function resolveSeries(m){
+  const family=await buildSeriesFamily(m);
+  return {root:family[0]||m,family:family.length?family:[m]};
+}
+function mergeSeasonRecord(target,source,media,si){
+  const existing=target.seasons.findIndex(s=>Number(s.mediaId)===Number(media.id));
+  const srcSeason=(source.seasons||[]).find(s=>Number(s.mediaId)===Number(media.id)) || source.seasons?.[0];
+  if(existing<0){
+    const available=airedEpisodes(media);
+    const watched=Array.isArray(srcSeason?.episodes)?srcSeason.episodes.slice():Array(available).fill(false);
+    while(watched.length<available)watched.push(false);
+    target.seasons.push({name:`Season ${si+1}`,mediaId:media.id,idMal:media.idMal||null,episodes:watched,availableEpisodes:available,plannedEpisodes:plannedEpisodes(media),episodeInfo:srcSeason?.episodeInfo||[]});
+  }else if(srcSeason){
+    const dst=target.seasons[existing];
+    const n=Math.max(dst.episodes?.length||0,srcSeason.episodes?.length||0, airedEpisodes(media));
+    dst.episodes=Array.from({length:n},(_,i)=>Boolean(dst.episodes?.[i]||srcSeason.episodes?.[i]));
+    dst.episodeInfo=dst.episodeInfo?.length?dst.episodeInfo:(srcSeason.episodeInfo||[]);
+    dst.availableEpisodes=airedEpisodes(media);
+    dst.plannedEpisodes=plannedEpisodes(media);
+  }
+}
+function consolidateSeriesWatchlist(root,family){
+  const ids=new Set(family.map(m=>Number(m.id)));
+  const records=db.list.filter(x=>ids.has(Number(x.id)));
+  if(!records.length)return null;
+  let target=records.find(x=>Number(x.id)===Number(root.id));
+  if(!target){
+    target={id:root.id,data:root,seasons:[],last:0};
+    db.list.push(target);
+  }
+  target.data=root;
+  target.last=Math.max(...records.map(x=>x.last||0),target.last||0);
+  target.seasons=target.seasons||[];
+  family.forEach((media,si)=>{
+    const source=records.find(x=>Number(x.id)===Number(media.id));
+    if(source)mergeSeasonRecord(target,source,media,si);
+    else if(!target.seasons.some(s=>Number(s.mediaId)===Number(media.id))){
+      const available=airedEpisodes(media);
+      target.seasons.push({name:`Season ${si+1}`,mediaId:media.id,idMal:media.idMal||null,episodes:Array(available).fill(false),availableEpisodes:available,plannedEpisodes:plannedEpisodes(media),episodeInfo:[]});
+    }
+  });
+  target.seasons.sort((a,b)=>Number(a.mediaId)-Number(b.mediaId));
+  // Remove duplicate per-season watchlist records. The series is now one item.
+  db.list=db.list.filter(x=>Number(x.id)===Number(root.id)||!ids.has(Number(x.id)));
+  // If a season was favorited separately, carry that favorite to the root.
+  if(records.some(x=>db.favorites.includes(Number(x.id)))){
+    db.favorites=db.favorites.filter(id=>!ids.has(Number(id)));
+    if(!db.favorites.includes(Number(root.id)))db.favorites.push(Number(root.id));
+  }
+  save();
+  return target;
+}
+function relationSeasons(family){
+  return family.map((media,i)=>({
+    name:`Season ${i+1}`,
+    episodes:airedEpisodes(media),
+    planned:plannedEpisodes(media),
+    id:media.id,
+    media
+  }));
+}
+async function openAnime(m){
+  const resolved=await resolveSeries(m);
+  const root=resolved.root;
+  const family=resolved.family;
+  // If the user opened Season 2/3/4 from search, always render the franchise
+  // root page instead of a second anime page.
+  m=root;
+  let item=consolidateSeriesWatchlist(root,family)||db.list.find(x=>x.id===root.id),chars=root.characters?.edges||[],recs=(root.recommendations?.nodes||[]).map(x=>x.mediaRecommendation).filter(Boolean),seasons=relationSeasons(family);
   $("#anime").innerHTML=`<button class=x onclick="animeDlg.close()">×</button>
   <div class=detailBanner>${imageTag(m.bannerImage||m.coverImage?.large||"")}</div>
   <div class=detailHead><div class=detailPoster>${imageTag(m.coverImage?.large||"")}</div><div><h1>${esc(title(m))}</h1><div class=muted>${m.seasonYear||""} · ${m.status||""} · ${m.duration||"?"} min/ep</div></div></div>
@@ -193,7 +276,7 @@ function openAnime(m){
   <section><h3>Similar anime</h3><div class=similar>${recs.map(x=>`<div class="sim" data-id="${x.id}">${imageTag(x.coverImage?.large||"","loading=\"lazy\"")}<b>${esc(title(x))}</b></div>`).join("")||"<span class=muted>No recommendations available.</span>"}</div></section>
   <section><h3>Comments</h3><div class=muted>Comments will become shared with the account system.</div></section>`;
   $("#add").onclick=()=>add(m);$("#favAnime").onclick=()=>{let on=toggleFav(m);$("#favAnime").classList.toggle("on",on);$("#favAnime").textContent=on?"♥ Favorited":"♡ Favorite"};
-  document.querySelectorAll(".season").forEach(s=>s.onclick=()=>openEpisodes(m,+s.dataset.s,seasons[+s.dataset.s].media));
+  document.querySelectorAll(".season").forEach(s=>s.onclick=()=>openEpisodes(root,+s.dataset.s,seasons[+s.dataset.s].media));
   document.querySelectorAll(".sim").forEach(s=>s.onclick=async()=>{
     let id=+s.dataset.id, found=recs.find(x=>x.id===id);
     if(found){animeDlg.close();setTimeout(()=>openAnime(found),80);return}
