@@ -1,19 +1,35 @@
-const API="https://graphql.anilist.co",K="yorumiru-v4.4.5",OLDK=["yorumiru-v4.4.4","yorumiru-v4"];let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem(OLDK[0])||localStorage.getItem(OLDK[1])||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
+const API="https://graphql.anilist.co",K="yorumiru-v4.4.6",OLDK=["yorumiru-v4.4.4","yorumiru-v4"];let db=JSON.parse(localStorage.getItem(K)||localStorage.getItem(OLDK[0])||localStorage.getItem(OLDK[1])||'{"list":[],"favorites":[],"favChars":[],"profile":{"name":"Yorumiru User"}}'),genre="";
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])),save=()=>localStorage.setItem(K,JSON.stringify(db));
 const Q=`query($search:String,$genre:String){Page(page:1,perPage:24){media(search:$search,genre:$genre,type:ANIME,isAdult:false,sort:[TRENDING_DESC,POPULARITY_DESC]){id title{romaji english}coverImage{large}bannerImage description episodes duration seasonYear averageScore genres status nextAiringEpisode{episode airingAt} airingSchedule(notYetAired:false,perPage:1,sort:TIME_DESC){nodes{episode airingAt}}characters(sort:ROLE,perPage:12){edges{node{id name{full}image{large}}}}relations{edges{relationType node{id title{romaji english}coverImage{large}episodes seasonYear}}}recommendations(perPage:6){nodes{mediaRecommendation{id title{romaji english}coverImage{large}episodes seasonYear}}}}}}`;
 async function api(v){let r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:Q,variables:v})});return(await r.json()).data.Page.media}
 const title=m=>m.title.english||m.title.romaji;
 const airedCount=m=>{
   const next=Number(m.nextAiringEpisode?.episode);
-  if(next>1) return next-1;
   const latest=Number(m.airingSchedule?.nodes?.[0]?.episode);
-  if(latest>0) return latest;
-  return Number(m.episodes)||0;
+  const known=Number(m.episodes)||0;
+  if(m.status==="RELEASING"){
+    if(next>1)return Math.max(0,next-1);
+    if(latest>0)return latest;
+    return known||0;
+  }
+  return known||latest||0;
 };
+const totalEpisodes=m=>Number(m.episodes)||0;
 const displayEpisodes=m=>{
-  const aired=airedCount(m), total=Number(m.episodes)||0;
-  if(m.status==="RELEASING" && aired>0) return total>aired ? `${aired}/${total}` : `${aired}`;
+  const aired=airedCount(m), total=totalEpisodes(m);
+  if(m.status==="RELEASING") return aired>0 ? (total>aired?`${aired}/${total}`:`${aired}`) : "Airing";
   return total||aired||"?";
+};
+const syncSeasonEpisodes=(x,si,m)=>{
+  const target=Math.max(0,airedCount(m));
+  if(!x.seasons[si])x.seasons[si]={name:`Season ${si+1}`,episodes:[]};
+  const old=x.seasons[si].episodes||[];
+  if(old.length<target)x.seasons[si].episodes=old.concat(Array(target-old.length).fill(false));
+  else if(old.length>target && m.status==="RELEASING")x.seasons[si].episodes=old.slice(0,target);
+  x.seasons[si].availableEpisodes=target;
+  x.seasons[si].totalEpisodes=totalEpisodes(m);
+  x.seasons[si].nextAiringEpisode=m.nextAiringEpisode||null;
+  return x.seasons[si];
 };
 function card(m){let e=document.createElement("article");e.className="card";e.innerHTML=`<div class=poster><img src="${esc(m.coverImage?.large||"")}"></div><div class=body><div class=title>${esc(title(m))}</div><div class=meta>${m.seasonYear||""} · ${displayEpisodes(m)} eps</div></div>`;e.onclick=()=>openAnime(m);return e}
 async function feed(){let rows=[];try{rows=await api({search:$("#q").value.trim()||null,genre:genre||null})}catch{};$("#feed").innerHTML="";rows.forEach(m=>$("#feed").append(card(m)))}
@@ -35,7 +51,7 @@ function seasonName(n,i){const t=title(n);const m=t.match(/season\s*(\d+)/i);if(
 async function openAnime(m){
   m=await mediaById(m.id)||m;
   const series=await collectSeries(m),base=series[0]||m;
-  const item=db.list.find(x=>x.id===base.id)||db.list.find(x=>x.id===m.id),chars=base.characters?.edges||[],recs=(base.recommendations?.nodes||[]).map(x=>x.mediaRecommendation).filter(Boolean);
+  const item=db.list.find(x=>x.id===base.id)||db.list.find(x=>x.id===m.id); if(item){item.data=base;series.forEach((n,i)=>syncSeasonEpisodes(item,i,n));save()} const chars=base.characters?.edges||[],recs=(base.recommendations?.nodes||[]).map(x=>x.mediaRecommendation).filter(Boolean);
   const seasons=series.map((n,i)=>({name:seasonName(n,i),episodes:airedCount(n),total:Number(n.episodes)||0,id:n.id,data:n}));
   $("#anime").innerHTML=`<button class=x onclick="animeDlg.close()">×</button><div class=detailBanner><img src="${esc(base.bannerImage||base.coverImage?.large||"")}"></div><div class=detailHead><div class=detailPoster><img src="${esc(base.coverImage?.large||"")}"></div><div><h1>${esc(title(base))}</h1><div class=muted>${base.seasonYear||""} · ${base.status||""} · ${base.duration||"?"} min/ep</div></div></div><button class=primary id=add>${item?"In watchlist":"＋ Add to watchlist"}</button><section><h3>About</h3><p class=muted>${strip(base.description)||"No description available."}</p></section><section><h3>Characters</h3><div class=chars>${chars.map(c=>`<div class=cmini><img src="${esc(c.node.image?.large||"")}"><small>${esc(c.node.name.full)}</small></div>`).join("")}</div></section><section><h3>Seasons</h3>${seasons.map((s,i)=>`<div class=season data-s="${i}"><span>${esc(s.name)}<br><small class=muted>${s.episodes||"?"}${s.total&&s.total>s.episodes?` of ${s.total}`:""} eps available</small></span>›</div>`).join("")}</section><section><h3>Similar anime</h3><div class=similar>${recs.map(x=>`<div class=sim data-id="${x.id}"><img src="${esc(x.coverImage?.large||"")}"><b>${esc(title(x))}</b></div>`).join("")}</div></section><section><h3>Comments</h3><div class=muted>Comments will become shared with the account system.</div></section>`;
   $("#add").onclick=()=>add(base);
@@ -44,9 +60,39 @@ async function openAnime(m){
   animeDlg.showModal()
 }
 function strip(x){return String(x||"").replace(/<[^>]*>/g,"").slice(0,500)}
-function add(m){if(!db.list.some(x=>x.id===m.id)){db.list.push({id:m.id,data:m,seasons:[{name:"Season 1",episodes:Array(airedCount(m)).fill(false)}],last:Date.now()});save()}$("#add").textContent="In watchlist";renderWatch()}
-function openEpisodes(m,si){let x=db.list.find(z=>z.id===m.id);if(!x){add(m);x=db.list.find(z=>z.id===m.id)}let eps=x.seasons[si]?.episodes||Array(airedCount(m)).fill(false);if(!x.seasons[si])x.seasons[si]={name:"Season "+(si+1),episodes:eps};$("#eps").innerHTML=`<button class=x onclick="epDlg.close()">×</button><h2>${esc(title(m))} — Season ${si+1}</h2><button class=secondary id=all>${eps.length&&eps.every(Boolean)?"Unmark season":"Mark full season watched"}</button><div>${eps.map((d,i)=>`<div class="episode ${d?"done":""}" data-i="${i}"><div class=num>${d?"✓":i+1}</div><div><b>Episode ${i+1}</b><div class=muted>${m.duration||"?"} min</div></div><span>${d?"WATCHED":"›"}</span></div>`).join("")}</div>`;$("#all").onclick=()=>{eps.fill(!eps.every(Boolean));x.last=Date.now();save();openEpisodes(m,si)};document.querySelectorAll(".episode").forEach(e=>e.onclick=()=>{let i=+e.dataset.i;if(!eps[i]){let missing=eps.slice(0,i).some(v=>!v);if(missing){if(confirm(`Have you watched all episodes up to Episode ${i+1}?\nOK = mark 1–${i+1}.\nCancel = only Episode ${i+1}.`))eps.fill(true,0,i+1);else eps[i]=true}else eps[i]=true}else eps[i]=false;x.last=Date.now();save();openEpisodes(m,si);renderWatch()});epDlg.showModal()}
-function renderWatch(){let tab=document.querySelector("[data-tab].active")?.dataset.tab||"list";if(tab==="upcoming"){const upcoming=db.list.map(x=>{const a=x.data.nextAiringEpisode;return a?{x,a}:null}).filter(Boolean).sort((a,b)=>a.a.airingAt-b.a.airingAt);$("#watchContent").innerHTML=upcoming.length?`<section><b>UPCOMING EPISODES</b>${upcoming.map(({x,a})=>`<div class="watch" data-id="${x.id}"><div class="thumb"><img src="${esc(x.data.coverImage?.large||"")}"></div><div><b>${esc(title(x.data))}</b><div class="muted">Episode ${a.episode}</div><div class="muted">${new Date(a.airingAt*1000).toLocaleString()}</div></div></div>`).join("")}</section>`:"<p class=muted>No upcoming episodes found for your watchlist.</p>";return}let w=db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes);return e.some(Boolean)&&!e.every(Boolean)}).sort((a,b)=>b.last-a.last),p=db.list.filter(x=>x.seasons.flatMap(s=>s.episodes).every(v=>!v));$("#watchContent").innerHTML=rows("WATCHING",w)+rows("PLAN TO WATCH",p)}
+function add(m){
+  let x=db.list.find(x=>x.id===m.id);
+  if(!x){
+    x={id:m.id,data:m,seasons:[{name:"Season 1",episodes:Array(airedCount(m)).fill(false),availableEpisodes:airedCount(m),totalEpisodes:totalEpisodes(m),nextAiringEpisode:m.nextAiringEpisode||null}],last:Date.now()};
+    db.list.push(x);
+  }else{ x.data=m; syncSeasonEpisodes(x,0,m); }
+  save();$("#add").textContent="In watchlist";renderWatch();
+}
+function openEpisodes(m,si){
+  let x=db.list.find(z=>z.id===m.id);
+  if(!x){add(m);x=db.list.find(z=>z.id===m.id)}
+  const s=syncSeasonEpisodes(x,si,m);
+  let eps=s.episodes||[];
+  const total=totalEpisodes(m),aired=airedCount(m);
+  const label=m.status==="RELEASING"?(total>aired?`${aired} aired / ${total} planned`:`${aired} aired`):`${aired||total} episodes`;
+  $("#eps").innerHTML=`<button class=x onclick="epDlg.close()">×</button><h2>${esc(title(m))} — ${esc(s.name||`Season ${si+1}`)}</h2><div class=muted>${label}</div><button class=secondary id=all>${eps.length&&eps.every(Boolean)?"Unmark season":"Mark full season watched"}</button><div>${eps.map((d,i)=>`<div class="episode ${d?"done":""}" data-i="${i}"><div class=num>${d?"✓":i+1}</div><div><b>Episode ${i+1}</b><div class=muted>${m.duration||"?"} min</div></div><span>${d?"WATCHED":"›"}</span></div>`).join("")}</div>`;
+  $("#all").onclick=()=>{eps.fill(!eps.every(Boolean));x.last=Date.now();save();openEpisodes(m,si)};
+  document.querySelectorAll(".episode").forEach(e=>e.onclick=()=>{let i=+e.dataset.i;if(!eps[i]){let missing=eps.slice(0,i).some(v=>!v);if(missing){if(confirm(`Have you watched all episodes up to Episode ${i+1}?\nOK = mark 1–${i+1}.\nCancel = only Episode ${i+1}.`))eps.fill(true,0,i+1);else eps[i]=true}else eps[i]=true}else eps[i]=false;x.last=Date.now();save();openEpisodes(m,si);renderWatch()});
+  save();epDlg.showModal();
+}
+async function renderWatch(){
+  let tab=document.querySelector("[data-tab].active")?.dataset.tab||"list";
+  if(tab==="upcoming"){
+    const items=[];
+    for(const x of db.list){
+      const fresh=await mediaById(x.id);
+      if(fresh){x.data=fresh;const a=fresh.nextAiringEpisode;if(a)items.push({x,a})}
+    }
+    items.sort((a,b)=>a.a.airingAt-b.a.airingAt);save();
+    $("#watchContent").innerHTML=items.length?`<section><b>UPCOMING EPISODES</b>${items.map(({x,a})=>`<div class="watch" data-id="${x.id}"><div class="thumb"><img src="${esc(x.data.coverImage?.large||"")}"></div><div><b>${esc(title(x.data))}</b><div class="muted">Episode ${a.episode}</div><div class="muted">${new Date(a.airingAt*1000).toLocaleString()}</div></div></div>`).join("")}</section>`:"<p class=muted>No upcoming episodes found for your watchlist.</p>";return}
+  let w=db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes||[]);return e.some(Boolean)&&!e.every(Boolean)}).sort((a,b)=>b.last-a.last),p=db.list.filter(x=>(x.seasons||[]).flatMap(s=>s.episodes||[]).every(v=>!v));
+  $("#watchContent").innerHTML=rows("WATCHING",w)+rows("PLAN TO WATCH",p);
+}
 function rows(h,a){return`<section><b>${h}</b>${a.length?a.map(x=>{let e=x.seasons.flatMap(s=>s.episodes),w=e.filter(Boolean).length;return`<div class=watch data-id="${x.id}"><div class=thumb><img src="${esc(x.data.coverImage?.large||"")}"></div><div><b>${esc(title(x.data))}</b><div class=muted>${w}/${e.length} episodes</div><div class=bar><i style="width:${e.length?w/e.length*100:0}%"></i></div></div></div>`}).join(""):"<p class=muted>Nothing here yet.</p>"}</section>`}
 function profile(){let w=db.list.reduce((n,x)=>n+x.seasons.flatMap(s=>s.episodes).filter(Boolean).length,0);let mins=db.list.reduce((n,x)=>n+x.seasons.flatMap(s=>s.episodes).filter(Boolean).length*(x.data.duration||24),0);$("#episodes").textContent=w;$("#hours").textContent=Math.round(mins/60)+"h";$("#username").textContent=db.profile.name;$("#favShows").innerHTML=db.list.filter(x=>db.favorites.includes(x.id)).map(x=>`<div class=mini><img src="${esc(x.data.coverImage?.large||"")}"><b>${esc(title(x.data))}</b></div>`).join("")||"<span class=muted>No favorites yet.</span>";$("#favChars").innerHTML=db.favChars.map(c=>`<div class=char><img src="${esc(c.image||"")}"><small>${esc(c.name)}</small></div>`).join("")||"<span class=muted>Add characters you like.</span>";$("#collection").innerHTML=["Watching","Completed","Plan to Watch"].map((n,i)=>`<div class=season><span>${n}</span><b>${count(i)}</b></div>`).join("")}
 function count(i){return db.list.filter(x=>{let e=x.seasons.flatMap(s=>s.episodes);return i===0?e.some(Boolean)&&!e.every(Boolean):i===1?e.length&&e.every(Boolean):e.every(v=>!v)}).length}
