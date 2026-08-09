@@ -374,9 +374,37 @@ document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.query
 $("#dots").onclick=()=>{$("#name").value=db.profile.name;settingsDlg.showModal()};$("#save").onclick=()=>{db.profile.name=$("#name").value.trim()||"Yorumiru User";save();settingsDlg.close();profile()};document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 document.addEventListener("click",e=>{let r=e.target.closest(".watch");if(r){let x=db.list.find(z=>z.id==r.dataset.id);if(x)openAnime(x.data)}});
 function safeImageUrl(u){
-  u=String(u||"");
+  u=String(u||"").trim();
   if(!u)return "";
-  return /^data:image\//i.test(u) ? u : imageProxy(u);
+  return u;
+}
+function profileImageSources(u){
+  u=safeImageUrl(u);
+  if(!u)return [];
+  if(/^data:image\//i.test(u))return [u];
+  if(/^https?:\/\//i.test(u)){
+    const proxy=imageProxy(u);
+    return proxy!==u?[u,proxy]:[u];
+  }
+  return [u];
+}
+function attachProfileImage(parent,type,value,onReady,onFail){
+  const sources=profileImageSources(value);
+  if(!sources.length){onFail();return;}
+  const img=document.createElement("img");
+  img.className=type+"Media";
+  img.alt=type==="banner"?"Profile background":"Profile picture";
+  img.decoding="async";
+  img.loading="eager";
+  let i=0;
+  img.onerror=()=>{
+    i++;
+    if(i<sources.length){img.src=sources[i];return;}
+    img.remove();onFail();
+  };
+  img.onload=()=>onReady(img);
+  img.src=sources[0];
+  parent.prepend(img);
 }
 function applyProfileImages(){
   const b=$("#profileBanner"),a=$("#profileAvatar");
@@ -384,33 +412,24 @@ function applyProfileImages(){
     b.querySelectorAll("img.bannerMedia").forEach(x=>x.remove());
     b.classList.remove("hasImage","imageBroken");
     if(db.profile.banner){
-      const img=document.createElement("img");
-      img.className="bannerMedia";
-      img.alt="Profile background";
-      img.decoding="async";
-      img.loading="eager";
-      img.src=safeImageUrl(db.profile.banner);
-      img.onload=()=>{b.classList.add("hasImage");b.classList.remove("imageBroken")};
-      img.onerror=()=>{img.remove();b.classList.remove("hasImage");b.classList.add("imageBroken")};
-      b.prepend(img);
+      attachProfileImage(b,"banner",db.profile.banner,()=>{
+        b.classList.add("hasImage");b.classList.remove("imageBroken");
+      },()=>{
+        b.classList.remove("hasImage");b.classList.add("imageBroken");
+      });
     }
   }
   if(a){
     a.querySelectorAll("img.avatarMedia").forEach(x=>x.remove());
+    a.classList.remove("hasImage");
     a.style.backgroundImage="";
     if(db.profile.avatar){
-      const img=document.createElement("img");
-      img.className="avatarMedia";
-      img.alt="Profile picture";
-      img.decoding="async";
-      img.loading="eager";
-      img.src=safeImageUrl(db.profile.avatar);
-      img.onload=()=>{a.classList.add("hasImage");a.textContent=""};
-      img.onerror=()=>{img.remove();a.classList.remove("hasImage");a.textContent=(db.profile.name||"Y")[0].toUpperCase()};
-      a.prepend(img);
-      a.textContent="";
+      attachProfileImage(a,"avatar",db.profile.avatar,(img)=>{
+        a.classList.add("hasImage");a.textContent="";
+      },()=>{
+        a.classList.remove("hasImage");a.textContent=(db.profile.name||"Y")[0].toUpperCase();
+      });
     }else{
-      a.classList.remove("hasImage");
       a.textContent=(db.profile.name||"Y")[0].toUpperCase();
     }
   }

@@ -1,11 +1,10 @@
-Yorumiru v4.5.2 — Ongoing Episode Fix
+Yorumiru v4.5.3 — Profile artwork rendering fix
 
-This patch preserves the v4.5.1 design and changes only episode availability logic.
+This patch preserves the v4.5.2 design and data model.
+Only the profile banner/avatar image loading was changed, plus the cache-busting version.
 
-- Ongoing anime use aired episodes (nextAiringEpisode - 1) instead of planned totals.
-- Planned totals are shown separately where known.
-- Future episodes are not created as watchable episodes.
-- Season cards show aired/total for releasing seasons.
-- Completed anime keep their full episode totals.
+Replace index.html, app.js and styles.css in GitHub Pages.
+Do not clear localStorage.
 
-Replace index.html, app.js and styles.css with these files. styles.css is unchanged except it is included to keep the package self-contained.
+Profile remote images now try the original URL first and the image proxy second.
+Uploaded data:image files continue to work directly.
