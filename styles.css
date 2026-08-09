@@ -908,3 +908,19 @@ dialog::backdrop{background:#000000b8;backdrop-filter:blur(7px)}
 .avatar{overflow:hidden;background:linear-gradient(140deg,var(--accent),#5b9ff7);}
 .avatarMedia{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;object-position:center;z-index:1;border-radius:50%;}
 .avatar.hasImage{font-size:0;}
+
+
+/* v4.5.4 — seasons get their own roomy, scrollable area */
+.seasonSection{margin-top:30px}
+.sectionTitleRow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sectionTitleRow h3{margin:0}
+.seasonList{max-height:52vh;min-height:180px;overflow-y:auto;padding:2px 8px 6px 2px;scrollbar-width:thin;overscroll-behavior:contain}
+.seasonList::-webkit-scrollbar{width:5px}
+.seasonList::-webkit-scrollbar-thumb{background:#3a454c;border-radius:99px}
+.seasonList .season{min-height:78px;margin:10px 0;padding:18px 18px}
+.seasonList .season strong{font-size:17px;font-weight:500}
+.seasonList .season .chev{font-size:25px;line-height:1;color:#89939a}
+@media(max-width:600px){
+  .seasonList{max-height:56vh;min-height:210px;padding-right:6px}
+  .seasonList .season{min-height:82px;padding:17px 16px}
+}

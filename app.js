@@ -161,11 +161,24 @@ $("#shuffleExplore").onclick=()=>{if(!$("#q").value.trim())buildExplore()};
 document.querySelectorAll(".railShuffle").forEach(b=>b.onclick=()=>{const key=b.dataset.rail,rows=explorePools[key]||[];renderRail("#"+key+"Rail",shuffle(rows.slice(0,10)))});
 
 function relationSeasons(m){
-  let seasons=[{name:"Season 1",episodes:airedEpisodes(m),planned:plannedEpisodes(m),media:m}];
-  m.relations?.edges?.filter(x=>x.relationType==="SEQUEL").forEach((x,i)=>{
-    const n=x.node||{};
-    seasons.push({name:`Season ${i+2}`,episodes:airedEpisodes(n),planned:plannedEpisodes(n),id:n.id,media:n});
-  });
+  // Build the complete sequel chain instead of only reading the first
+  // relation level. This keeps multi-season anime together.
+  const seasons=[];
+  const seen=new Set();
+  let current=m;
+  let guard=0;
+  while(current && !seen.has(current.id) && guard++<20){
+    seen.add(current.id);
+    seasons.push({
+      name:`Season ${seasons.length+1}`,
+      episodes:airedEpisodes(current),
+      planned:plannedEpisodes(current),
+      id:current.id,
+      media:current
+    });
+    const edge=current.relations?.edges?.find(x=>x.relationType==="SEQUEL");
+    current=edge?.node||null;
+  }
   return seasons;
 }
 function openAnime(m){
@@ -176,7 +189,7 @@ function openAnime(m){
   <div class="detailActions"><button class=primary id=add>${item?"In watchlist":"＋ Add to watchlist"}</button><button class="favoriteAction ${isFav(m.id)?"on":""}" id=favAnime>${isFav(m.id)?"♥ Favorited":"♡ Favorite"}</button></div>
   <section><h3>About</h3><p class=muted>${strip(m.description)||"No description available."}</p></section>
   <section><h3>Characters</h3><div class=chars>${chars.map(c=>`<div class=cmini>${imageTag(c.node.image?.large||"")}<small>${esc(c.node.name.full)}</small></div>`).join("")}</div></section>
-  <section><h3>Seasons</h3>${seasons.map((s,i)=>`<div class=season data-s="${i}"><span>${s.name}<br><small class=muted>${s.episodes||"?"}${s.media?.status==="RELEASING"&&s.planned&&s.planned>s.episodes?` / ${s.planned}`:""} episodes</small></span>›</div>`).join("")}</section>
+  <section class="seasonSection"><div class="sectionTitleRow"><h3>Seasons</h3><small class="muted">${seasons.length} ${seasons.length===1?"season":"seasons"}</small></div><div class="seasonList">${seasons.map((s,i)=>`<div class="season" data-s="${i}"><span><strong>${s.name}</strong><br><small class=muted>${s.episodes||"?"}${s.media?.status==="RELEASING"&&s.planned&&s.planned>s.episodes?` / ${s.planned}`:""} episodes</small></span><span class="chev">›</span></div>`).join("")}</div></section>
   <section><h3>Similar anime</h3><div class=similar>${recs.map(x=>`<div class="sim" data-id="${x.id}">${imageTag(x.coverImage?.large||"","loading=\"lazy\"")}<b>${esc(title(x))}</b></div>`).join("")||"<span class=muted>No recommendations available.</span>"}</div></section>
   <section><h3>Comments</h3><div class=muted>Comments will become shared with the account system.</div></section>`;
   $("#add").onclick=()=>add(m);$("#favAnime").onclick=()=>{let on=toggleFav(m);$("#favAnime").classList.toggle("on",on);$("#favAnime").textContent=on?"♥ Favorited":"♡ Favorite"};
